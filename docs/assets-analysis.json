@@ -70,7 +70,7 @@
   },
   "old-envelope-open.png": {
     "filename": "old-envelope-open.png",
-    "path": "assets/hanna/references/old-envelope-open.png",
+    "path": "assets/hanna/archive/old-envelope-open.png",
     "nativeWidth": 1448,
     "nativeHeight": 1086,
     "colorMode": "RGBA",
@@ -93,7 +93,7 @@
   },
   "old-envelope-pocket.png": {
     "filename": "old-envelope-pocket.png",
-    "path": "assets/hanna/envelope/old-envelope-pocket.png",
+    "path": "assets/hanna/archive/old-envelope-pocket.png",
     "nativeWidth": 1536,
     "nativeHeight": 1024,
     "colorMode": "RGBA",
