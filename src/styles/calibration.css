@@ -1,6 +1,6 @@
-/* Interface de calibration technique sombre & Quiet Luxury */
+/* Interface de calibration technique sombre & Quiet Luxury — Phase 1.1 */
 
-/* Vue d'accueil simplifiée (Phase 0 / Phase 1) */
+/* Vue d'accueil simplifiée */
 .home-view {
   min-height: 100vh;
   display: flex;
@@ -118,7 +118,7 @@
   color: var(--text-muted);
 }
 
-/* Onglets A à E */
+/* Onglets F à E */
 .calib-tabs {
   display: flex;
   gap: 0.25rem;
@@ -126,6 +126,7 @@
   padding: 0.25rem;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
+  overflow-x: auto;
 }
 
 .calib-tab {
@@ -135,6 +136,7 @@
   border-radius: 6px;
   color: var(--text-secondary);
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .calib-tab:hover {
@@ -186,7 +188,7 @@
   color: var(--gold-light);
 }
 
-/* Corps principal : Stage + Panneau latéral */
+/* Corps principal */
 .calib-body {
   display: flex;
   flex: 1;
@@ -247,7 +249,6 @@
   right: 0;
   height: 1px;
   background: rgba(56, 189, 248, 0.35);
-  box-shadow: 0 0 4px rgba(56, 189, 248, 0.2);
 }
 
 .axis-y {
@@ -257,7 +258,6 @@
   bottom: 0;
   width: 1px;
   background: rgba(56, 189, 248, 0.35);
-  box-shadow: 0 0 4px rgba(56, 189, 248, 0.2);
 }
 
 .axis-origin-label {
@@ -272,6 +272,36 @@
   border-radius: 2px;
 }
 
+/* Physical Envelope Outline (820 × 490) */
+.physical-envelope-outline {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 820px;
+  height: 490px;
+  margin-left: -410px;
+  margin-top: -245px;
+  border: 2px solid rgba(197, 168, 128, 0.95);
+  box-shadow: 0 0 15px rgba(197, 168, 128, 0.3), inset 0 0 15px rgba(197, 168, 128, 0.08);
+  pointer-events: none;
+  z-index: 60;
+  display: block;
+}
+
+.physical-box-tag {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--gold-accent);
+  color: #0b0c0e;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+}
+
 /* Eléments du stage */
 .stage-layer {
   position: absolute;
@@ -279,6 +309,10 @@
   top: 50%;
   transform-style: preserve-3d;
   will-change: transform;
+}
+
+.stage-layer.difference-mode img {
+  mix-blend-mode: difference;
 }
 
 .stage-img {
@@ -290,18 +324,42 @@
   user-select: none;
 }
 
+/* Labels runtime vs reference */
+.layer-runtime-badge {
+  position: absolute;
+  top: -20px;
+  right: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 120;
+}
+
+.layer-runtime-badge.runtime {
+  background: rgba(56, 189, 248, 0.85);
+  color: #0b0c0e;
+}
+
+.layer-runtime-badge.reference {
+  background: rgba(245, 158, 11, 0.85);
+  color: #0b0c0e;
+}
+
 /* Bounding boxes overlays */
 .bbox-outer {
   position: absolute;
   inset: 0;
-  border: 1px dashed rgba(245, 158, 11, 0.7);
+  border: 1px dashed rgba(245, 158, 11, 0.6);
   pointer-events: none;
   z-index: 90;
 }
 
 .bbox-alpha {
   position: absolute;
-  border: 1.5px solid rgba(16, 185, 129, 0.85);
+  border: 1.5px solid rgba(16, 185, 129, 0.9);
   pointer-events: none;
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
   z-index: 95;
@@ -321,7 +379,7 @@
   white-space: nowrap;
 }
 
-/* Tooltip coordonnées live sous curseur */
+/* Tooltip coordonnées live */
 .coord-hud {
   position: absolute;
   bottom: 1rem;
@@ -342,8 +400,8 @@
 
 /* Sidebar des contrôles */
 .calib-sidebar {
-  width: 400px;
-  min-width: 360px;
+  width: 420px;
+  min-width: 380px;
   background: var(--bg-surface);
   border-left: 1px solid var(--border-subtle);
   display: flex;
@@ -377,18 +435,51 @@
   color: var(--text-secondary);
 }
 
-/* Sélecteur de poses PDF (Boutons P12 à P26) */
+/* Boutons de mode Match (FRONT, BACK, OVERLAY, BLINK, DIFFERENCE) */
+.match-modes-bar {
+  display: flex;
+  gap: 0.35rem;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.3rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.match-mode-btn {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 0.45rem 0.2rem;
+  text-align: center;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all 0.15s ease;
+}
+
+.match-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.match-mode-btn.active {
+  background: var(--gold-accent);
+  color: #0b0c0e;
+  font-weight: 700;
+}
+
+/* Grille de sélection des 15 poses PDF (P12 à P26) */
 .pdf-poses-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.4rem;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.35rem;
   margin-bottom: 0.85rem;
 }
 
 .pdf-pose-btn {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  padding: 0.45rem 0.2rem;
+  font-size: 0.68rem;
+  padding: 0.45rem 0.15rem;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
@@ -403,24 +494,24 @@
 }
 
 .pdf-pose-btn.active {
-  background: rgba(197, 168, 128, 0.2);
+  background: rgba(197, 168, 128, 0.25);
   border-color: var(--gold-accent);
   color: var(--gold-light);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .pdf-pose-desc {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--text-secondary);
-  background: rgba(0, 0, 0, 0.25);
-  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.6rem 0.8rem;
   border-radius: 6px;
-  border-left: 2px solid var(--gold-accent);
-  margin-bottom: 0.85rem;
-  line-height: 1.4;
+  border-left: 3px solid var(--gold-accent);
+  margin-bottom: 1rem;
+  line-height: 1.45;
 }
 
-/* Contrôles numériques (Sliders + Inputs) */
+/* Contrôles numériques */
 .controls-group {
   display: flex;
   flex-direction: column;
@@ -464,11 +555,10 @@
   border-radius: 50%;
   background: var(--gold-accent);
   cursor: pointer;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
 }
 
 .control-number {
-  width: 68px;
+  width: 72px;
   padding: 0.25rem 0.4rem;
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -534,18 +624,14 @@
   100% { opacity: 0; transform: translateY(-10px); }
 }
 
-/* Responsive & breakpoints */
 @media (max-width: 900px) {
   .calib-body {
     flex-direction: column;
   }
   .calib-sidebar {
     width: 100%;
-    height: 42vh;
+    height: 44vh;
     border-left: none;
     border-top: 1px solid var(--border-subtle);
-  }
-  .calib-tabs {
-    overflow-x: auto;
   }
 }

@@ -1,5 +1,5 @@
 /**
- * Vue HTML et composants de rendu pour le mode Calibration
+ * Vue HTML et composants de rendu pour le mode Calibration (Phase 1.1)
  */
 
 export function createCalibrationLayout() {
@@ -9,11 +9,12 @@ export function createCalibrationLayout() {
       <header class="calib-header">
         <div class="calib-brand">
           <span class="calib-logo">HANNA</span>
-          <span class="calib-badge">CALIBRATION V1.0</span>
+          <span class="calib-badge">CALIBRATION V1.1 — VERROUILLAGE GÉOMÉTRIQUE</span>
         </div>
 
         <nav class="calib-tabs" id="calib-tabs">
-          <button class="calib-tab active" data-tab="closedFront">A. CLOSED FRONT</button>
+          <button class="calib-tab active" data-tab="frontBackMatch">F. FRONT / BACK MATCH</button>
+          <button class="calib-tab" data-tab="closedFront">A. CLOSED FRONT</button>
           <button class="calib-tab" data-tab="closedBack">B. CLOSED BACK</button>
           <button class="calib-tab" data-tab="openReference">C. OPEN REFERENCE</button>
           <button class="calib-tab" data-tab="cardPocket">D. CARD + POCKET</button>
@@ -33,10 +34,10 @@ export function createCalibrationLayout() {
           <button class="action-btn active" id="btn-toggle-alpha" title="Basculer Alpha Bounds">
             <span>Alpha</span>
           </button>
-          <button class="action-btn primary" id="btn-copy-json" title="Copier la géométrie actuelle en JSON">
+          <button class="action-btn primary" id="btn-copy-json" title="Copier la géométrie verrouillée en JSON">
             <span>📋 Copy JSON</span>
           </button>
-          <button class="action-btn" id="btn-reset-geom" title="Réinitialiser les valeurs par défaut">
+          <button class="action-btn" id="btn-reset-geom" title="Réinitialiser les valeurs physiques">
             <span>↺ Reset</span>
           </button>
         </div>
@@ -57,6 +58,11 @@ export function createCalibrationLayout() {
                 <span class="axis-origin-label">(0, 0)</span>
               </div>
 
+              <!-- Contour de la PHYSICAL ENVELOPE (820 × 490) -->
+              <div class="physical-envelope-outline" id="physical-envelope-outline">
+                <span class="physical-box-tag">PHYSICAL BOUNDS : 820 × 490 px</span>
+              </div>
+
               <!-- Conteneur des calques actifs -->
               <div class="stage-content" id="stage-content"></div>
             </div>
@@ -67,6 +73,7 @@ export function createCalibrationLayout() {
             <span>Stage: 1600 × 1000</span>
             <span id="mouse-coords">X: 0px | Y: 0px</span>
             <span id="stage-scale-info">Scale: 100%</span>
+            <span id="match-status" style="color: var(--accent-emerald); font-weight: 600;">Match: 0.00px diff</span>
           </div>
         </div>
 

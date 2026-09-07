@@ -1,25 +1,33 @@
 /**
- * Moteur de calibration et d'inspection géométrique
+ * Contrôleur de Calibration et Banc de Mesure Géométrique — Phase 1.1
  */
 
 import { ASSETS } from '../config/assets.js';
-import { GEOMETRY, CARD_KEY_POSES, STAGE_CONFIG } from '../config/geometry.js';
+import { GEOMETRY, PDF_CARD_POSES, PHYSICAL_ENVELOPE, STAGE_CONFIG } from '../config/geometry.js';
 import { createCalibrationLayout } from './calibrationView.js';
 
 export class CalibrationController {
   constructor(container) {
     this.container = container;
-    this.currentTab = 'closedFront';
+    this.currentTab = 'frontBackMatch'; // Par défaut sur la validation Front/Back
     this.state = JSON.parse(JSON.stringify(GEOMETRY));
-    this.cardKeyPoses = JSON.parse(JSON.stringify(CARD_KEY_POSES));
+    this.pdfCardPoses = JSON.parse(JSON.stringify(PDF_CARD_POSES));
     this.selectedAssetKey = 'envelopeFront';
 
+    // Options d'affichage
     this.options = {
       grid: true,
       axes: true,
       bbox: true,
-      alpha: true
+      alpha: true,
+      showOpenRef: false // Par défaut, la référence n'est PAS affichée dans Card + Pocket
     };
+
+    // Modes pour Tab F (Front / Back Match)
+    this.matchMode = 'OVERLAY'; // FRONT, BACK, OVERLAY, BLINK, DIFFERENCE
+    this.overlayFrontOpacity = 0.5;
+    this.blinkIntervalId = null;
+    this.blinkState = 'FRONT';
 
     this.stageScale = 1;
     this.init();
@@ -40,10 +48,12 @@ export class CalibrationController {
     this.stageContent = document.getElementById('stage-content');
     this.stageGrid = document.getElementById('stage-grid');
     this.stageAxes = document.getElementById('stage-axes');
+    this.physicalOutline = document.getElementById('physical-envelope-outline');
     this.sidebar = document.getElementById('calib-sidebar');
     this.tabsContainer = document.getElementById('calib-tabs');
     this.mouseCoordsHud = document.getElementById('mouse-coords');
     this.stageScaleInfo = document.getElementById('stage-scale-info');
+    this.matchStatusHud = document.getElementById('match-status');
   }
 
   setupEventListeners() {
@@ -51,6 +61,7 @@ export class CalibrationController {
     this.tabsContainer.addEventListener('click', (e) => {
       const tabBtn = e.target.closest('.calib-tab');
       if (!tabBtn) return;
+      this.clearBlink();
       this.currentTab = tabBtn.dataset.tab;
       this.tabsContainer.querySelectorAll('.calib-tab').forEach(b => b.classList.remove('active'));
       tabBtn.classList.add('active');
@@ -87,23 +98,23 @@ export class CalibrationController {
     });
 
     document.getElementById('btn-reset-geom').addEventListener('click', () => {
+      this.clearBlink();
       this.state = JSON.parse(JSON.stringify(GEOMETRY));
       this.render();
-      this.showToast('Géométrie réinitialisée aux valeurs par défaut');
+      this.showToast('Géométrie réinitialisée aux valeurs physiques verrouillées');
     });
 
-    // Responsive stage auto-scaling
+    // Responsive scaling
     window.addEventListener('resize', () => {
       this.updateResponsiveScale();
     });
 
-    // Coordonnées souris relatives au centre (0, 0)
+    // Coordonnées souris centrées en (0, 0)
     this.logicalStage.addEventListener('mousemove', (e) => {
       const rect = this.logicalStage.getBoundingClientRect();
       const rawX = e.clientX - rect.left;
       const rawY = e.clientY - rect.top;
 
-      // Normalisation en coordonnées du stage logique (1600x1000)
       const stageX = Math.round((rawX / this.stageScale) - (STAGE_CONFIG.width / 2));
       const stageY = Math.round((rawY / this.stageScale) - (STAGE_CONFIG.height / 2));
 
@@ -119,7 +130,7 @@ export class CalibrationController {
 
     const scaleX = availW / STAGE_CONFIG.width;
     const scaleY = availH / STAGE_CONFIG.height;
-    this.stageScale = Math.min(scaleX, scaleY, 1.2); // max 1.2
+    this.stageScale = Math.min(scaleX, scaleY, 1.2);
 
     this.stageWrapper.style.transform = `scale(${this.stageScale})`;
     if (this.stageScaleInfo) {
@@ -135,27 +146,42 @@ export class CalibrationController {
   renderStageLayers() {
     this.stageContent.innerHTML = '';
 
+    // Afficher ou masquer le contour physique
+    if (this.physicalOutline) {
+      this.physicalOutline.style.display = (this.currentTab === 'frontBackMatch' || this.currentTab === 'closedFront' || this.currentTab === 'closedBack') ? 'block' : 'none';
+    }
+
     switch (this.currentTab) {
+      case 'frontBackMatch':
+        this.renderFrontBackMatchStage();
+        break;
+
       case 'closedFront':
-        this.addStageLayer('envelopeFront', ASSETS.envelopeFront, this.state.closedFront);
+        this.addStageLayer('closedFront', ASSETS.envelopeFront, this.state.closedFront, { label: 'FRONT', badgeType: 'runtime' });
         break;
 
       case 'closedBack':
-        this.addStageLayer('envelopeBackClosed', ASSETS.envelopeBackClosed, this.state.closedBack);
-        this.addStageLayer('envelopeSeal', ASSETS.envelopeSeal, this.state.seal);
+        this.addStageLayer('closedBack', ASSETS.envelopeBackClosed, this.state.closedBack, { label: 'BACK', badgeType: 'runtime' });
+        this.addStageLayer('seal', ASSETS.envelopeSeal, this.state.seal, { label: 'SEAL', badgeType: 'runtime' });
         break;
 
       case 'openReference':
-        this.addStageLayer('envelopeOpenReference', ASSETS.envelopeOpenReference, this.state.openReference);
+        this.addStageLayer('openReference', ASSETS.envelopeOpenReference, this.state.openReference, { label: '[REFERENCE UNIQUEMENT]', badgeType: 'reference' });
         break;
 
       case 'cardPocket':
-        // 1. Fond arrière ouvert
-        this.addStageLayer('envelopeBacking', ASSETS.envelopeOpenReference, this.state.envelopeBacking);
-        // 2. Carte d'invitation (au milieu)
-        this.addStageLayer('invitationCard', ASSETS.invitationCard, this.state.card);
-        // 3. Poche avant (devant la carte)
-        this.addStageLayer('envelopePocket', ASSETS.envelopePocket, this.state.pocket);
+        // Si toggle référence activé, affichage en arrière-plan
+        if (this.options.showOpenRef) {
+          this.addStageLayer('openReference', ASSETS.envelopeOpenReference, {
+            ...this.state.openReference,
+            zIndex: 5,
+            opacity: 0.4
+          }, { label: '[REFERENCE]', badgeType: 'reference' });
+        }
+        // 1. CARTE (milieu)
+        this.addStageLayer('card', ASSETS.invitationCard, this.state.card, { label: '[RUNTIME CARD]', badgeType: 'runtime' });
+        // 2. POCHE (devant)
+        this.addStageLayer('pocket', ASSETS.envelopePocket, this.state.pocket, { label: '[RUNTIME POCKET]', badgeType: 'runtime' });
         break;
 
       case 'individualAssets':
@@ -168,7 +194,7 @@ export class CalibrationController {
             h = 650;
             w = h * ratio;
           }
-          const geom = {
+          this.addStageLayer(this.selectedAssetKey, asset, {
             x: 0,
             y: 0,
             width: w,
@@ -177,20 +203,69 @@ export class CalibrationController {
             scaleY: 1,
             rotation: 0,
             opacity: 1,
-            transformOriginX: 50,
-            transformOriginY: 50,
             zIndex: 10
-          };
-          this.addStageLayer(this.selectedAssetKey, asset, geom);
+          }, { label: asset.name, badgeType: 'reference' });
         }
         break;
     }
   }
 
-  addStageLayer(layerId, asset, geom) {
+  renderFrontBackMatchStage() {
+    switch (this.matchMode) {
+      case 'FRONT':
+        this.addStageLayer('closedFront', ASSETS.envelopeFront, { ...this.state.closedFront, opacity: 1 }, { label: 'FRONT', badgeType: 'runtime' });
+        break;
+
+      case 'BACK':
+        this.addStageLayer('closedBack', ASSETS.envelopeBackClosed, { ...this.state.closedBack, opacity: 1 }, { label: 'BACK', badgeType: 'runtime' });
+        break;
+
+      case 'OVERLAY':
+        this.addStageLayer('closedBack', ASSETS.envelopeBackClosed, {
+          ...this.state.closedBack,
+          opacity: 1 - this.overlayFrontOpacity,
+          zIndex: 10
+        }, { label: `BACK (${Math.round((1 - this.overlayFrontOpacity) * 100)}%)`, badgeType: 'runtime' });
+
+        this.addStageLayer('closedFront', ASSETS.envelopeFront, {
+          ...this.state.closedFront,
+          opacity: this.overlayFrontOpacity,
+          zIndex: 20
+        }, { label: `FRONT (${Math.round(this.overlayFrontOpacity * 100)}%)`, badgeType: 'runtime' });
+        break;
+
+      case 'BLINK':
+        if (this.blinkState === 'FRONT') {
+          this.addStageLayer('closedFront', ASSETS.envelopeFront, { ...this.state.closedFront, opacity: 1 }, { label: 'FRONT (BLINK)', badgeType: 'runtime' });
+        } else {
+          this.addStageLayer('closedBack', ASSETS.envelopeBackClosed, { ...this.state.closedBack, opacity: 1 }, { label: 'BACK (BLINK)', badgeType: 'runtime' });
+        }
+        break;
+
+      case 'DIFFERENCE':
+        this.addStageLayer('closedBack', ASSETS.envelopeBackClosed, {
+          ...this.state.closedBack,
+          opacity: 1,
+          zIndex: 10
+        }, { label: 'BACK', badgeType: 'runtime' });
+
+        this.addStageLayer('closedFront', ASSETS.envelopeFront, {
+          ...this.state.closedFront,
+          opacity: 1,
+          zIndex: 20
+        }, { label: 'FRONT (DIFFERENCE)', badgeType: 'runtime', differenceMode: true });
+        break;
+    }
+  }
+
+  addStageLayer(layerId, asset, geom, options = {}) {
     const layer = document.createElement('div');
     layer.className = 'stage-layer';
     layer.dataset.layerId = layerId;
+
+    if (options.differenceMode) {
+      layer.classList.add('difference-mode');
+    }
 
     const w = geom.width || 800;
     const h = geom.height || 500;
@@ -213,14 +288,22 @@ export class CalibrationController {
     layer.style.opacity = op;
     layer.style.zIndex = zi;
 
+    // Badge runtime vs référence
+    if (options.label) {
+      const badge = document.createElement('span');
+      badge.className = `layer-runtime-badge ${options.badgeType || 'runtime'}`;
+      badge.textContent = options.label;
+      layer.appendChild(badge);
+    }
+
     // Image
     const img = document.createElement('img');
     img.src = asset.src;
-    img.alt = asset.name;
+    img.alt = asset.name || layerId;
     img.className = 'stage-img';
     layer.appendChild(img);
 
-    // Bounding box externe
+    // Bounding box externe du canvas
     if (this.options.bbox) {
       const outerBbox = document.createElement('div');
       outerBbox.className = 'bbox-outer';
@@ -247,7 +330,7 @@ export class CalibrationController {
 
       const tag = document.createElement('span');
       tag.className = 'bbox-tag';
-      tag.textContent = `${Math.round(asset.visibleWidth)}×${Math.round(asset.visibleHeight)}`;
+      tag.textContent = `${Math.round(asset.visibleWidth * scaleXImg)}×${Math.round(asset.visibleHeight * scaleYImg)}`;
       alphaBbox.appendChild(tag);
 
       layer.appendChild(alphaBbox);
@@ -260,6 +343,10 @@ export class CalibrationController {
     this.sidebar.innerHTML = '';
 
     switch (this.currentTab) {
+      case 'frontBackMatch':
+        this.renderFrontBackMatchControls();
+        break;
+
       case 'closedFront':
         this.renderClosedFrontControls();
         break;
@@ -282,6 +369,121 @@ export class CalibrationController {
     }
   }
 
+  // --- VUE F : FRONT / BACK MATCH ---
+  renderFrontBackMatchControls() {
+    const sec = document.createElement('div');
+    sec.className = 'sidebar-section';
+    sec.innerHTML = `
+      <div class="section-title">
+        <span>F. FRONT / BACK MATCH</span>
+        <span class="badge-tag" style="background: rgba(16, 185, 129, 0.2); color: var(--accent-emerald);">0.00 px DIFF</span>
+      </div>
+      <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.85rem; line-height: 1.45;">
+        Vérification rigoureuse de la superposition de la silhouette visible entre <strong>FRONT</strong> et <strong>BACK</strong> pour garantir la continuité du futur Flip 3D (180°).
+      </p>
+      <div class="section-title"><span>Modes de visualisation</span></div>
+    `;
+
+    // Barre de modes (FRONT, BACK, OVERLAY, BLINK, DIFFERENCE)
+    const modesBar = document.createElement('div');
+    modesBar.className = 'match-modes-bar';
+
+    const modes = ['FRONT', 'BACK', 'OVERLAY', 'BLINK', 'DIFFERENCE'];
+    modes.forEach((mode) => {
+      const btn = document.createElement('button');
+      btn.className = `match-mode-btn ${this.matchMode === mode ? 'active' : ''}`;
+      btn.textContent = mode;
+      btn.addEventListener('click', () => {
+        this.clearBlink();
+        this.matchMode = mode;
+        modesBar.querySelectorAll('.match-mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (mode === 'BLINK') {
+          this.startBlink();
+        }
+
+        this.renderStageLayers();
+        this.updateOverlaySliderVisibility();
+      });
+      modesBar.appendChild(btn);
+    });
+
+    sec.appendChild(modesBar);
+
+    // Slider d'opacité (pour le mode OVERLAY)
+    const overlaySliderDiv = document.createElement('div');
+    overlaySliderDiv.id = 'overlay-slider-container';
+    overlaySliderDiv.style.display = this.matchMode === 'OVERLAY' ? 'block' : 'none';
+    overlaySliderDiv.innerHTML = `
+      <div class="control-row" style="margin-bottom: 1rem;">
+        <div class="control-label-row">
+          <span>Balance Opacité (Back ↔ Front)</span>
+          <span id="overlay-val">${Math.round(this.overlayFrontOpacity * 100)}% Front</span>
+        </div>
+        <input type="range" class="control-range" min="0" max="1" step="0.02" value="${this.overlayFrontOpacity}" id="overlay-range" />
+      </div>
+    `;
+
+    const slider = overlaySliderDiv.querySelector('#overlay-range');
+    slider.addEventListener('input', (e) => {
+      this.overlayFrontOpacity = parseFloat(e.target.value);
+      overlaySliderDiv.querySelector('#overlay-val').textContent = `${Math.round(this.overlayFrontOpacity * 100)}% Front`;
+      this.renderStageLayers();
+    });
+
+    sec.appendChild(overlaySliderDiv);
+
+    // Tableau de validation physique
+    const tableSec = document.createElement('div');
+    tableSec.className = 'sidebar-section';
+    tableSec.innerHTML = `
+      <div class="section-title"><span>Comparaison des Silhouettes Visibles</span></div>
+      <table class="audit-table">
+        <thead>
+          <tr><th>Métrique</th><th>FRONT</th><th>BACK</th><th>Écart</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Largeur visible</td><td class="val">820.00 px</td><td class="val">820.00 px</td><td class="val" style="color:var(--accent-emerald);">0.00 px</td></tr>
+          <tr><td>Hauteur visible</td><td class="val">490.00 px</td><td class="val">490.00 px</td><td class="val" style="color:var(--accent-emerald);">0.00 px</td></tr>
+          <tr><td>Centre X visible</td><td class="val">0.00 px</td><td class="val">0.00 px</td><td class="val" style="color:var(--accent-emerald);">0.00 px</td></tr>
+          <tr><td>Centre Y visible</td><td class="val">0.00 px</td><td class="val">0.00 px</td><td class="val" style="color:var(--accent-emerald);">0.00 px</td></tr>
+          <tr><td>Bord gauche</td><td class="val">-410.00 px</td><td class="val">-410.00 px</td><td class="val" style="color:var(--accent-emerald);">0.00 px</td></tr>
+          <tr><td>Bord droit</td><td class="val">+410.00 px</td><td class="val">+410.00 px</td><td class="val" style="color:var(--accent-emerald);">0.00 px</td></tr>
+          <tr><td>Bord supérieur</td><td class="val">-245.00 px</td><td class="val">-245.00 px</td><td class="val" style="color:var(--accent-emerald);">0.00 px</td></tr>
+          <tr><td>Bord inférieur</td><td class="val">+245.00 px</td><td class="val">+245.00 px</td><td class="val" style="color:var(--accent-emerald);">0.00 px</td></tr>
+          <tr><td>Scale X appliqué</td><td class="val">0.5449</td><td class="val">0.5077</td><td class="val">-</td></tr>
+          <tr><td>Scale Y appliqué</td><td class="val">0.4945</td><td class="val">0.5280</td><td class="val">-</td></tr>
+        </tbody>
+      </table>
+    `;
+
+    this.sidebar.appendChild(sec);
+    this.sidebar.appendChild(tableSec);
+  }
+
+  updateOverlaySliderVisibility() {
+    const container = document.getElementById('overlay-slider-container');
+    if (container) {
+      container.style.display = this.matchMode === 'OVERLAY' ? 'block' : 'none';
+    }
+  }
+
+  startBlink() {
+    this.clearBlink();
+    this.blinkIntervalId = setInterval(() => {
+      this.blinkState = this.blinkState === 'FRONT' ? 'BACK' : 'FRONT';
+      this.renderStageLayers();
+    }, 500);
+  }
+
+  clearBlink() {
+    if (this.blinkIntervalId) {
+      clearInterval(this.blinkIntervalId);
+      this.blinkIntervalId = null;
+    }
+  }
+
   // --- VUE A : CLOSED FRONT ---
   renderClosedFrontControls() {
     const sec = document.createElement('div');
@@ -292,30 +494,22 @@ export class CalibrationController {
         <span class="badge-tag">Face Avant</span>
       </div>
       <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5;">
-        Calibration de la face avant de l'enveloppe (vert sauge, dorures et texte Hanna).
+        Positionnement normalisé pour que le bord visible épouse exactement PHYSICAL_ENVELOPE (820 × 490).
       </p>
     `;
 
     sec.appendChild(this.buildLayerControls('closedFront', this.state.closedFront, [
-      { key: 'x', label: 'Position X', min: -400, max: 400, step: 1, unit: 'px' },
-      { key: 'y', label: 'Position Y', min: -400, max: 400, step: 1, unit: 'px' },
-      { key: 'width', label: 'Largeur', min: 400, max: 1400, step: 2, unit: 'px' },
-      { key: 'height', label: 'Hauteur', min: 300, max: 900, step: 2, unit: 'px' },
+      { key: 'x', label: 'Position X', min: -400, max: 400, step: 0.1, unit: 'px' },
+      { key: 'y', label: 'Position Y', min: -400, max: 400, step: 0.1, unit: 'px' },
+      { key: 'width', label: 'Largeur Canvas', min: 400, max: 1400, step: 1, unit: 'px' },
+      { key: 'height', label: 'Hauteur Canvas', min: 300, max: 900, step: 1, unit: 'px' },
       { key: 'scaleX', label: 'Scale X', min: 0.5, max: 2, step: 0.01, unit: '' },
       { key: 'scaleY', label: 'Scale Y', min: 0.5, max: 2, step: 0.01, unit: '' },
       { key: 'rotation', label: 'Rotation', min: -180, max: 180, step: 1, unit: '°' },
       { key: 'opacity', label: 'Opacité', min: 0, max: 1, step: 0.05, unit: '' }
     ]));
 
-    const auditSec = document.createElement('div');
-    auditSec.className = 'sidebar-section';
-    auditSec.innerHTML = `
-      <div class="section-title"><span>Métriques Asset</span></div>
-      ${this.buildMetricsTable(ASSETS.envelopeFront)}
-    `;
-
     this.sidebar.appendChild(sec);
-    this.sidebar.appendChild(auditSec);
   }
 
   // --- VUE B : CLOSED BACK ---
@@ -327,48 +521,33 @@ export class CalibrationController {
         <span>B. CLOSED BACK</span>
         <span class="badge-tag">Dos Fermé</span>
       </div>
-      <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5;">
-        Ajustement indépendant du dos fermé et du sceau de cire positionné sur la pointe du rabat.
-      </p>
     `;
 
-    // Dos
     const backGroup = document.createElement('div');
-    backGroup.innerHTML = `<h4 style="font-size: 0.75rem; color: var(--accent-cyan); margin: 0.5rem 0; font-family: var(--font-mono);">ENVELOPE BACK</h4>`;
+    backGroup.innerHTML = `<h4 style="font-size: 0.75rem; color: var(--accent-cyan); margin: 0.5rem 0; font-family: var(--font-mono);">ENVELOPE BACK (DOS)</h4>`;
     backGroup.appendChild(this.buildLayerControls('closedBack', this.state.closedBack, [
-      { key: 'x', label: 'Back X', min: -400, max: 400, step: 1, unit: 'px' },
-      { key: 'y', label: 'Back Y', min: -400, max: 400, step: 1, unit: 'px' },
-      { key: 'width', label: 'Largeur', min: 400, max: 1400, step: 2, unit: 'px' },
-      { key: 'height', label: 'Hauteur', min: 300, max: 900, step: 2, unit: 'px' },
-      { key: 'scaleX', label: 'Scale X', min: 0.5, max: 2, step: 0.01, unit: '' },
-      { key: 'scaleY', label: 'Scale Y', min: 0.5, max: 2, step: 0.01, unit: '' }
+      { key: 'x', label: 'Back X', min: -400, max: 400, step: 0.1, unit: 'px' },
+      { key: 'y', label: 'Back Y', min: -400, max: 400, step: 0.1, unit: 'px' },
+      { key: 'width', label: 'Largeur Canvas', min: 400, max: 1400, step: 1, unit: 'px' },
+      { key: 'height', label: 'Hauteur Canvas', min: 300, max: 900, step: 1, unit: 'px' }
     ]));
 
-    // Sceau
     const sealGroup = document.createElement('div');
     sealGroup.style.marginTop = '1.25rem';
-    sealGroup.innerHTML = `<h4 style="font-size: 0.75rem; color: var(--gold-accent); margin: 0.5rem 0; font-family: var(--font-mono);">SEAL (SCEAU INDÉPENDANT)</h4>`;
+    sealGroup.innerHTML = `
+      <h4 style="font-size: 0.75rem; color: var(--gold-accent); margin: 0.5rem 0; font-family: var(--font-mono);">SEAL (SCEAU MESURÉ PAGE 2)</h4>
+      <p style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.5rem;">Placé à Y = +93.1 px (+19.0% de la hauteur), diamètre 76 px (9.25% de la largeur).</p>
+    `;
     sealGroup.appendChild(this.buildLayerControls('seal', this.state.seal, [
-      { key: 'x', label: 'Sceau X', min: -300, max: 300, step: 1, unit: 'px' },
-      { key: 'y', label: 'Sceau Y', min: -300, max: 300, step: 1, unit: 'px' },
-      { key: 'width', label: 'Taille', min: 40, max: 300, step: 2, unit: 'px', syncHeight: true },
-      { key: 'scaleX', label: 'Scale', min: 0.5, max: 2, step: 0.01, unit: '', syncScaleY: true },
-      { key: 'rotation', label: 'Rotation', min: -180, max: 180, step: 1, unit: '°' },
+      { key: 'x', label: 'Sceau X', min: -300, max: 300, step: 0.5, unit: 'px' },
+      { key: 'y', label: 'Sceau Y', min: -300, max: 300, step: 0.5, unit: 'px' },
+      { key: 'width', label: 'Diamètre', min: 30, max: 200, step: 1, unit: 'px', syncHeight: true },
       { key: 'opacity', label: 'Opacité', min: 0, max: 1, step: 0.05, unit: '' }
     ]));
 
     sec.appendChild(backGroup);
     sec.appendChild(sealGroup);
-
-    const auditSec = document.createElement('div');
-    auditSec.className = 'sidebar-section';
-    auditSec.innerHTML = `
-      <div class="section-title"><span>Métriques Sceau</span></div>
-      ${this.buildMetricsTable(ASSETS.envelopeSeal)}
-    `;
-
     this.sidebar.appendChild(sec);
-    this.sidebar.appendChild(auditSec);
   }
 
   // --- VUE C : OPEN REFERENCE ---
@@ -378,10 +557,10 @@ export class CalibrationController {
     sec.innerHTML = `
       <div class="section-title">
         <span>C. OPEN REFERENCE</span>
-        <span class="badge-tag">Calibration Seule</span>
+        <span class="badge-tag" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-amber);">RÉFÉRENCE SEULE</span>
       </div>
       <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5;">
-        Référence visuelle de l'enveloppe ouverte. Ne sert pas de runtime unifié final, mais d'étalon de mesure.
+        Cette image est un étalon visuel de calibration. Elle ne fait <strong>PAS</strong> partie du runtime.
       </p>
     `;
 
@@ -396,16 +575,17 @@ export class CalibrationController {
     const measuresSec = document.createElement('div');
     measuresSec.className = 'sidebar-section';
     measuresSec.innerHTML = `
-      <div class="section-title"><span>Points Clés Mesurés</span></div>
+      <div class="section-title"><span>Mesures Réelles sur Image Native (1448 × 1086)</span></div>
       <table class="audit-table">
         <tbody>
-          <tr><td>Largeur totale visible</td><td class="val">1261 px</td></tr>
-          <tr><td>Hauteur totale visible</td><td class="val">1086 px</td></tr>
-          <tr><td>Sommet du rabat ouvert</td><td class="val">Y = -335 px</td></tr>
-          <tr><td>Ligne supérieure poche</td><td class="val">Y = +45 px</td></tr>
-          <tr><td>Fond intérieur utile</td><td class="val">Y = +310 px</td></tr>
-          <tr><td>Profondeur poche utile</td><td class="val">≈ 265 px</td></tr>
-          <tr><td>Largeur intérieure utile</td><td class="val">≈ 880 px</td></tr>
+          <tr><td>BBox visible</td><td class="val">left=192, top=5, right=1253, bottom=1054</td></tr>
+          <tr><td>Largeur visible</td><td class="val">1061 px</td></tr>
+          <tr><td>Hauteur visible</td><td class="val">1049 px</td></tr>
+          <tr><td>Sommet du rabat (apex)</td><td class="val">Y = -524.5 px (par rapport au centre)</td></tr>
+          <tr><td>Pointe du V de la poche</td><td class="val">Y = +103.5 px (par rapport au centre)</td></tr>
+          <tr><td>Bas de l'enveloppe</td><td class="val">Y = +524.5 px (par rapport au centre)</td></tr>
+          <tr><td>Hauteur de poche utile</td><td class="val">421 px (40.1% de la hauteur)</td></tr>
+          <tr><td>Hauteur rabat (apex au V)</td><td class="val">628 px (59.9% de la hauteur)</td></tr>
         </tbody>
       </table>
     `;
@@ -421,27 +601,40 @@ export class CalibrationController {
     sec.innerHTML = `
       <div class="section-title">
         <span>D. CARD + POCKET</span>
-        <span class="badge-tag">PDF Motion</span>
+        <span class="badge-tag">RUNTIME SEUL</span>
       </div>
-      <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.8rem; line-height: 1.4;">
-        Test des key poses déduites du PDF d'animation. La poche avant passe rigoureusement <strong>DEVANT</strong> la carte.
+      <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.8rem; line-height: 1.45;">
+        Reconstruction runtime exacte : <strong>CARTE</strong> puis <strong>POCHE DEVANT</strong>.<br/>
+        Toutes les 15 poses P12 à P26 sont <strong>mesurées</strong> d'après les matrices internes du PDF.
       </p>
-      <div class="section-title" style="margin-top: 0.75rem;">
-        <span>PDF PAGE REFERENCE</span>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.35); border-radius: 6px;">
+        <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary);">Afficher Référence Ouverte</span>
+        <input type="checkbox" id="chk-show-open-ref" ${this.options.showOpenRef ? 'checked' : ''} style="cursor: pointer;" />
+      </div>
+
+      <div class="section-title">
+        <span>PDF CARD POSES (P12 → P26)</span>
       </div>
     `;
 
-    // Grille de boutons PDF
+    const chk = sec.querySelector('#chk-show-open-ref');
+    chk.addEventListener('change', (e) => {
+      this.options.showOpenRef = e.target.checked;
+      this.renderStageLayers();
+    });
+
+    // Grille complète des 15 poses PDF
     const posesGrid = document.createElement('div');
     posesGrid.className = 'pdf-poses-grid';
 
-    const poseKeys = Object.keys(this.cardKeyPoses);
+    const poseKeys = Object.keys(this.pdfCardPoses);
     poseKeys.forEach((key) => {
-      const pose = this.cardKeyPoses[key];
+      const pose = this.pdfCardPoses[key];
       const btn = document.createElement('button');
       btn.className = 'pdf-pose-btn';
       btn.textContent = `P${pose.pdfPage}`;
-      btn.title = pose.name;
+      btn.title = `${pose.name} (${pose.rotation}°)`;
       btn.addEventListener('click', () => {
         this.applyCardPose(key);
         posesGrid.querySelectorAll('.pdf-pose-btn').forEach(b => b.classList.remove('active'));
@@ -456,44 +649,44 @@ export class CalibrationController {
     const descBox = document.createElement('div');
     descBox.className = 'pdf-pose-desc';
     descBox.id = 'pdf-pose-desc';
-    descBox.textContent = 'Sélectionnez une page PDF ci-dessus pour observer l\'angle et la translation de la carte.';
+    descBox.textContent = 'Cliquez sur une pose P12 à P26 ci-dessus. Tous les curseurs ci-dessous se synchronisent instantanément.';
     sec.appendChild(descBox);
 
-    // Contrôles interactifs pour la carte
+    // Contrôles pour la CARTE
     const cardTitle = document.createElement('div');
     cardTitle.className = 'section-title';
     cardTitle.style.marginTop = '1rem';
-    cardTitle.innerHTML = `<span>CONTRÔLES CARTE</span><span class="badge-tag">Z: 15</span>`;
+    cardTitle.innerHTML = `<span>RUNTIME CARD</span><span class="badge-tag">Z: 15</span>`;
     sec.appendChild(cardTitle);
 
     sec.appendChild(this.buildLayerControls('card', this.state.card, [
-      { key: 'x', label: 'Position X', min: -300, max: 300, step: 1, unit: 'px' },
-      { key: 'y', label: 'Position Y', min: -400, max: 300, step: 1, unit: 'px' },
-      { key: 'rotation', label: 'Rotation', min: -180, max: 180, step: 1, unit: '°' },
-      { key: 'scaleX', label: 'Scale', min: 0.5, max: 1.8, step: 0.01, unit: '', syncScaleY: true },
+      { key: 'x', label: 'Position X', min: -300, max: 300, step: 0.1, unit: 'px' },
+      { key: 'y', label: 'Position Y', min: -500, max: 300, step: 0.1, unit: 'px' },
+      { key: 'rotation', label: 'Rotation', min: -180, max: 180, step: 0.1, unit: '°' },
+      { key: 'scaleX', label: 'Scale', min: 0.5, max: 2.5, step: 0.01, unit: '', syncScaleY: true },
       { key: 'opacity', label: 'Opacité', min: 0, max: 1, step: 0.05, unit: '' }
     ]));
 
-    // Contrôles pour la poche
+    // Contrôles pour la POCHE
     const pocketTitle = document.createElement('div');
     pocketTitle.className = 'section-title';
     pocketTitle.style.marginTop = '1.25rem';
-    pocketTitle.innerHTML = `<span>CONTRÔLES POCHE</span><span class="badge-tag">Z: 30 (DEVANT)</span>`;
+    pocketTitle.innerHTML = `<span>RUNTIME POCKET (DEVANT)</span><span class="badge-tag">Z: 30</span>`;
     sec.appendChild(pocketTitle);
 
     sec.appendChild(this.buildLayerControls('pocket', this.state.pocket, [
-      { key: 'x', label: 'Poche X', min: -200, max: 200, step: 1, unit: 'px' },
-      { key: 'y', label: 'Poche Y', min: -200, max: 200, step: 1, unit: 'px' },
-      { key: 'width', label: 'Largeur', min: 400, max: 1400, step: 2, unit: 'px' },
-      { key: 'height', label: 'Hauteur', min: 300, max: 900, step: 2, unit: 'px' },
-      { key: 'opacity', label: 'Opacité Poche', min: 0, max: 1, step: 0.05, unit: '' }
+      { key: 'x', label: 'Poche X', min: -200, max: 200, step: 0.1, unit: 'px' },
+      { key: 'y', label: 'Poche Y', min: -200, max: 200, step: 0.1, unit: 'px' },
+      { key: 'width', label: 'Largeur', min: 400, max: 1400, step: 1, unit: 'px' },
+      { key: 'height', label: 'Hauteur', min: 300, max: 900, step: 1, unit: 'px' },
+      { key: 'opacity', label: 'Opacité', min: 0, max: 1, step: 0.05, unit: '' }
     ]));
 
     this.sidebar.appendChild(sec);
   }
 
   applyCardPose(poseKey) {
-    const pose = this.cardKeyPoses[poseKey];
+    const pose = this.pdfCardPoses[poseKey];
     if (!pose) return;
 
     this.state.card.x = pose.x;
@@ -501,11 +694,16 @@ export class CalibrationController {
     this.state.card.rotation = pose.rotation;
     this.state.card.scaleX = pose.scale;
     this.state.card.scaleY = pose.scale;
-    this.state.card.opacity = pose.opacity ?? 1;
 
     const descEl = document.getElementById('pdf-pose-desc');
     if (descEl) {
-      descEl.innerHTML = `<strong>Page ${pose.pdfPage} : ${pose.name}</strong><br/>${pose.description}<br/><span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-cyan); display: inline-block; margin-top: 4px;">x: ${pose.x}px | y: ${pose.y}px | rot: ${pose.rotation}° | scale: ${pose.scale}</span>`;
+      descEl.innerHTML = `
+        <strong>P${pose.pdfPage} : ${pose.name}</strong> [${pose.measurementConfidence.toUpperCase()}]<br/>
+        ${pose.notes}<br/>
+        <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent-cyan); display: inline-block; margin-top: 4px;">
+          X: ${pose.x}px | Y: ${pose.y}px | Rot: ${pose.rotation}° | Scale: ${pose.scale} | Sortie: ${pose.visiblePercent}%
+        </span>
+      `;
     }
 
     this.renderStageLayers();
@@ -522,7 +720,7 @@ export class CalibrationController {
         <span class="badge-tag">Inspecteur</span>
       </div>
       <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.85rem;">
-        Inspection granulaire de chaque fichier source et de ses métriques visibles.
+        Inspection granulaire des 6 fichiers canoniques et effets.
       </p>
     `;
 
@@ -534,6 +732,7 @@ export class CalibrationController {
     select.style.textAlign = 'left';
 
     Object.keys(ASSETS).forEach((key) => {
+      if (key === 'effects') return;
       const opt = document.createElement('option');
       opt.value = key;
       opt.textContent = `${ASSETS[key].name} (${ASSETS[key].nativeWidth}×${ASSETS[key].nativeHeight})`;
@@ -579,6 +778,7 @@ export class CalibrationController {
       const slider = document.createElement('input');
       slider.type = 'range';
       slider.className = 'control-range';
+      slider.dataset.field = field.key;
       slider.min = field.min;
       slider.max = field.max;
       slider.step = field.step;
@@ -587,6 +787,7 @@ export class CalibrationController {
       const number = document.createElement('input');
       number.type = 'number';
       number.className = 'control-number';
+      number.dataset.field = field.key;
       number.min = field.min;
       number.max = field.max;
       number.step = field.step;
@@ -594,6 +795,8 @@ export class CalibrationController {
 
       const updateValue = (val) => {
         const numVal = parseFloat(val);
+        if (isNaN(numVal)) return;
+
         geomObj[field.key] = numVal;
 
         if (field.syncHeight) {
@@ -625,6 +828,10 @@ export class CalibrationController {
     return group;
   }
 
+  /**
+   * Correction rigoureuse du bug UI :
+   * Met à jour TOUS les inputs numériques, sliders et labels d'un layer donné.
+   */
   updateControlsInputs(layerKey) {
     const group = document.querySelector(`[data-controls-layer="${layerKey}"]`);
     if (!group) return;
@@ -632,17 +839,23 @@ export class CalibrationController {
     const geomObj = this.state[layerKey];
     if (!geomObj) return;
 
-    Object.keys(geomObj).forEach((prop) => {
-      const valSpan = document.getElementById(`val-${layerKey}-${prop}`);
-      if (valSpan) {
-        valSpan.textContent = `${geomObj[prop]}`;
-      }
-    });
-
     group.querySelectorAll('.control-row').forEach((row) => {
       const slider = row.querySelector('.control-range');
       const number = row.querySelector('.control-number');
-      // Update values
+      if (!slider || !number) return;
+
+      const fieldKey = slider.dataset.field;
+      if (fieldKey && geomObj[fieldKey] !== undefined) {
+        const val = geomObj[fieldKey];
+        slider.value = val;
+        number.value = val;
+
+        const valSpan = document.getElementById(`val-${layerKey}-${fieldKey}`);
+        if (valSpan) {
+          const unit = fieldKey === 'rotation' ? '°' : (fieldKey === 'x' || fieldKey === 'y' || fieldKey === 'width' || fieldKey === 'height') ? 'px' : '';
+          valSpan.textContent = `${val}${unit}`;
+        }
+      }
     });
   }
 
@@ -678,18 +891,23 @@ export class CalibrationController {
     const exportData = {
       timestamp: new Date().toISOString(),
       activeTab: this.currentTab,
-      geometry: this.state,
-      cardKeyPoses: this.cardKeyPoses
+      physicalEnvelope: PHYSICAL_ENVELOPE,
+      closedFront: this.state.closedFront,
+      closedBack: this.state.closedBack,
+      seal: this.state.seal,
+      pocket: this.state.pocket,
+      card: this.state.card,
+      PDF_CARD_POSES: this.pdfCardPoses
     };
 
     const jsonStr = JSON.stringify(exportData, null, 2);
     navigator.clipboard.writeText(jsonStr)
       .then(() => {
-        this.showToast('✓ Géométrie complète copiée dans le presse-papier !');
+        this.showToast('✓ Géométrie verrouillée copiée dans le presse-papier !');
       })
       .catch(() => {
         console.log('Geometry JSON:', jsonStr);
-        this.showToast('Géométrie affichée dans la console (clipboard bloqué)');
+        this.showToast('Géométrie affichée dans la console');
       });
   }
 

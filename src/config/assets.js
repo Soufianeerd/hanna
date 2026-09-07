@@ -1,13 +1,13 @@
 /**
  * Registre unique des assets du projet Hanna
- * Toutes les dimensions et bounding boxes proviennent de l'audit automatique (docs/assets-analysis.json).
+ * Source canonique : assets/hanna/ (servi par Vite via publicDir: 'assets' sous /hanna/...)
  */
 
 export const ASSETS = {
   envelopeFront: {
     id: 'envelopeFront',
     name: 'Face avant enveloppe',
-    src: '/assets/hanna/envelope/envelope-front.png',
+    src: '/hanna/envelope/envelope-front.png',
     nativeWidth: 1536,
     nativeHeight: 1024,
     aspectRatio: 1.5,
@@ -27,7 +27,7 @@ export const ASSETS = {
   envelopeBackClosed: {
     id: 'envelopeBackClosed',
     name: 'Dos fermé enveloppe',
-    src: '/assets/hanna/envelope/envelope-back-closed.png',
+    src: '/hanna/envelope/envelope-back-closed.png',
     nativeWidth: 1672,
     nativeHeight: 941,
     aspectRatio: 1.7768,
@@ -47,7 +47,7 @@ export const ASSETS = {
   envelopeSeal: {
     id: 'envelopeSeal',
     name: 'Sceau de cire indépendant',
-    src: '/assets/hanna/envelope/envelope-seal.png',
+    src: '/hanna/envelope/envelope-seal.png',
     nativeWidth: 1254,
     nativeHeight: 1254,
     aspectRatio: 1.0,
@@ -66,8 +66,8 @@ export const ASSETS = {
 
   envelopeOpenReference: {
     id: 'envelopeOpenReference',
-    name: 'Référence enveloppe ouverte (calibration)',
-    src: '/assets/hanna/references/old-envelope-open.png',
+    name: 'Référence enveloppe ouverte (calibration uniquement)',
+    src: '/hanna/archive/old-envelope-open.png',
     nativeWidth: 1448,
     nativeHeight: 1086,
     aspectRatio: 1.3333,
@@ -87,7 +87,7 @@ export const ASSETS = {
   envelopePocket: {
     id: 'envelopePocket',
     name: 'Poche avant enveloppe (masquage carte)',
-    src: '/assets/hanna/envelope/old-envelope-pocket.png',
+    src: '/hanna/archive/old-envelope-pocket.png',
     nativeWidth: 1536,
     nativeHeight: 1024,
     aspectRatio: 1.5,
@@ -107,7 +107,7 @@ export const ASSETS = {
   invitationCard: {
     id: 'invitationCard',
     name: 'Carte d\'invitation',
-    src: '/assets/hanna/invitation/carteInvitation.png',
+    src: '/hanna/invitation/carteInvitation.png',
     nativeWidth: 941,
     nativeHeight: 1672,
     aspectRatio: 0.5628,
@@ -122,5 +122,14 @@ export const ASSETS = {
     visibleHeight: 1672,
     visibleCenter: { x: 470.5, y: 836.0 },
     canvasCoveragePercent: 100.0
+  },
+
+  effects: {
+    glitterDust: { id: 'glitterDust', src: '/hanna/effects/glitter-dust.png' },
+    glowSoft: { id: 'glowSoft', src: '/hanna/effects/glow-soft.png' },
+    smokeSoft1: { id: 'smokeSoft1', src: '/hanna/effects/smoke-soft-01.png' },
+    smokeSoft2: { id: 'smokeSoft2', src: '/hanna/effects/smoke-soft-02.png' },
+    sparkleStar1: { id: 'sparkleStar1', src: '/hanna/effects/sparkle-star-01.png' },
+    sparkleStar2: { id: 'sparkleStar2', src: '/hanna/effects/sparkle-star-02.png' }
   }
 };
