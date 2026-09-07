@@ -1,0 +1,551 @@
+/* Interface de calibration technique sombre & Quiet Luxury */
+
+/* Vue d'accueil simplifiée (Phase 0 / Phase 1) */
+.home-view {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  background: radial-gradient(circle at 50% 30%, #171b22 0%, #0b0c0e 70%);
+}
+
+.home-card {
+  max-width: 580px;
+  padding: 3rem 2.5rem;
+  background: rgba(20, 23, 28, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.home-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold-accent);
+  background: rgba(197, 168, 128, 0.12);
+  border: 1px solid rgba(197, 168, 128, 0.25);
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  margin-bottom: 1.5rem;
+}
+
+.home-title {
+  font-family: var(--font-serif);
+  font-size: 2.75rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.home-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--gold-accent);
+  color: #0b0c0e;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
+  padding: 0.85rem 1.75rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.home-btn:hover {
+  background: var(--gold-light);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(197, 168, 128, 0.25);
+}
+
+/* Layout Calibration */
+.calibration-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #090a0d;
+}
+
+/* Header de calibration */
+.calib-header {
+  height: 56px;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 100;
+}
+
+.calib-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.calib-logo {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+  color: var(--gold-accent);
+}
+
+.calib-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+/* Onglets A à E */
+.calib-tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.calib-tab {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.calib-tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.calib-tab.active {
+  background: var(--gold-accent);
+  color: #0b0c0e;
+  font-weight: 600;
+}
+
+/* Actions du header */
+.calib-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  background: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.action-btn.active {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--accent-cyan);
+}
+
+.action-btn.primary {
+  background: rgba(197, 168, 128, 0.15);
+  border-color: rgba(197, 168, 128, 0.4);
+  color: var(--gold-light);
+}
+
+/* Corps principal : Stage + Panneau latéral */
+.calib-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Zone du stage logique */
+.calib-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #13171f 0%, #08090b 80%);
+}
+
+.stage-wrapper {
+  position: relative;
+  transform-origin: center center;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.07);
+  background: #0d0f13;
+}
+
+.logical-stage {
+  width: 1600px;
+  height: 1000px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Grille & Axes */
+.stage-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-size: 100px 100px, 20px 20px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  z-index: 50;
+}
+
+.stage-axes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 55;
+}
+
+.axis-x {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.2);
+}
+
+.axis-y {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.2);
+}
+
+.axis-origin-label {
+  position: absolute;
+  left: calc(50% + 8px);
+  top: calc(50% + 8px);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-cyan);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* Eléments du stage */
+.stage-layer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.stage-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Bounding boxes overlays */
+.bbox-outer {
+  position: absolute;
+  inset: 0;
+  border: 1px dashed rgba(245, 158, 11, 0.7);
+  pointer-events: none;
+  z-index: 90;
+}
+
+.bbox-alpha {
+  position: absolute;
+  border: 1.5px solid rgba(16, 185, 129, 0.85);
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+  z-index: 95;
+}
+
+.bbox-tag {
+  position: absolute;
+  top: -16px;
+  left: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  background: rgba(16, 185, 129, 0.9);
+  color: #0b0c0e;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+/* Tooltip coordonnées live sous curseur */
+.coord-hud {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: rgba(11, 12, 14, 0.85);
+  border: 1px solid var(--border-subtle);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  color: var(--accent-cyan);
+  display: flex;
+  gap: 1rem;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  z-index: 100;
+}
+
+/* Sidebar des contrôles */
+.calib-sidebar {
+  width: 400px;
+  min-width: 360px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 80;
+}
+
+.sidebar-section {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold-accent);
+  margin-bottom: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge-tag {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+/* Sélecteur de poses PDF (Boutons P12 à P26) */
+.pdf-poses-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.pdf-pose-btn {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.45rem 0.2rem;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.pdf-pose-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.pdf-pose-btn.active {
+  background: rgba(197, 168, 128, 0.2);
+  border-color: var(--gold-accent);
+  color: var(--gold-light);
+  font-weight: 600;
+}
+
+.pdf-pose-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border-left: 2px solid var(--gold-accent);
+  margin-bottom: 0.85rem;
+  line-height: 1.4;
+}
+
+/* Contrôles numériques (Sliders + Inputs) */
+.controls-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.control-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.control-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.control-range {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  appearance: none;
+  outline: none;
+}
+
+.control-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--gold-accent);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+}
+
+.control-number {
+  width: 68px;
+  padding: 0.25rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-radius: 4px;
+  text-align: right;
+}
+
+.control-number:focus {
+  border-color: var(--gold-accent);
+  outline: none;
+}
+
+/* Tableau d'audit & métriques */
+.audit-table {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  border-collapse: collapse;
+}
+
+.audit-table th {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.audit-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+}
+
+.audit-table td.val {
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* Toast confirmation copie */
+.toast-msg {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: var(--accent-emerald);
+  color: #0b0c0e;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  animation: fadeInOut 2.5s forwards;
+  z-index: 999;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(10px); }
+  15% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Responsive & breakpoints */
+@media (max-width: 900px) {
+  .calib-body {
+    flex-direction: column;
+  }
+  .calib-sidebar {
+    width: 100%;
+    height: 42vh;
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .calib-tabs {
+    overflow-x: auto;
+  }
+}

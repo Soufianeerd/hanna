@@ -1,0 +1,55 @@
+/* Global design tokens & quiet luxury foundation */
+:root {
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Palette dark technique / quiet luxury */
+  --bg-dark: #0b0c0e;
+  --bg-surface: #14171c;
+  --bg-surface-elevated: #1c2027;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: #c5a880;
+
+  --text-primary: #f0f2f5;
+  --text-secondary: #9aa2b0;
+  --text-muted: #5e6676;
+
+  --gold-accent: #c5a880;
+  --gold-light: #e6d3ba;
+  --accent-olive: #606d5c;
+  --accent-cyan: #38bdf8;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+
+  --stage-width: 1600px;
+  --stage-height: 1000px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select {
+  font-family: inherit;
+}
