@@ -1,95 +1,140 @@
-/* ==================================================
-   Hanna Invitation — Styles de l'Expérience (MVP Complet)
-   ================================================== */
+/**
+ * Hanna Experience Styles
+ * Design sophistiqué, immersion papeterie mariage haut de gamme
+ * Palette : Ivoire (#F7F4EC), Vert Forêt (#155039), Or discret (#C5A880)
+ */
 
-/* Fond global et conteneur plein écran */
+:root {
+  --color-ivory: #F7F4EC;
+  --color-forest: #155039;
+  --color-forest-dark: #0f3a29;
+  --color-gold: #C5A880;
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-script: 'Alex Brush', cursive;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Police personnalisable pour l'initiale S de Salma */
+  --salma-initial-font: 'Great Vibes', cursive;
+}
+
 body.hanna-experience-active {
-  background-color: #F7F4EC !important;
-  color: #2b2b28;
-  overflow: hidden !important;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
   margin: 0;
   padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--color-ivory);
   user-select: none;
   -webkit-user-select: none;
 }
 
+/* Conteneur Viewport global */
 .experience-viewport {
   position: relative;
   width: 100vw;
   height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: var(--color-ivory);
   perspective: 1600px;
-  background-color: #F7F4EC;
+  overflow: hidden;
 }
 
-/* ==================================================
-   Ombre au sol (GroundShadow)
-   ================================================== */
+/* Bouton Son / Mute discret en haut à droite (zone tactile >= 40x40px) */
+.audio-toggle-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(21, 80, 57, 0.22);
+  background: rgba(247, 244, 236, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #155039;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 200;
+  transition: all 0.2s ease;
+  outline: none;
+  padding: 0;
+}
+
+.audio-toggle-btn:hover {
+  background: rgba(247, 244, 236, 0.98);
+  border-color: #155039;
+  transform: scale(1.05);
+}
+
+.audio-toggle-btn:active {
+  transform: scale(0.96);
+}
+
+/* Ombre au sol (ellipse douce découplée de l'objet 3D) */
 .ground-shadow {
   position: absolute;
   top: 50%;
   left: 50%;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(38, 44, 34, 0.28) 0%, rgba(48, 52, 42, 0.16) 45%, rgba(65, 68, 58, 0) 70%);
-  filter: blur(16px);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(21, 80, 57, 0.28) 0%,
+    rgba(21, 80, 57, 0.12) 42%,
+    rgba(21, 80, 57, 0.03) 70%,
+    rgba(21, 80, 57, 0) 100%
+  );
+  filter: blur(8px);
+  transform-origin: 50% 50%;
   pointer-events: none;
-  z-index: 1;
-  transform-origin: center center;
-  opacity: 0;
+  z-index: 5;
   will-change: transform, opacity;
 }
 
-/* ==================================================
-   Hiérarchie de wrappers
-   ================================================== */
-
-/* 1. Scaler viewport responsive uniquement */
+/* Scaler responsive global de l'enveloppe */
 .envelope-viewport-scaler {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+  position: relative;
   width: 0;
   height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform-origin: center center;
-  z-index: 2;
-  pointer-events: auto;
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 
-/* 2. Wrapper de mouvements GSAP (translateY, scale, floating, rotateZ) */
+/* Wrapper de mouvement (translateY, rotation Z, floating idle) */
 .envelope-motion-wrapper {
   position: relative;
-  width: 820px;
-  height: 490px;
-  transform-origin: center center;
-  will-change: transform, opacity;
+  width: 0;
+  height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 
-/* 3. Objet 3D pivot (preserve-3d, 820 × 490) */
+/* Objet 3D fermé (pivot 0° -> 180° autour du centre géométrique) */
 .envelope-object-3d {
-  position: relative;
-  width: 820px;
-  height: 490px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   transform-style: preserve-3d;
-  outline: none;
-  cursor: default;
+  transform-origin: 50% 50%;
   will-change: transform;
+  outline: none;
 }
 
 .envelope-object-3d.is-interactive {
   cursor: pointer;
 }
 
-/* 4. Face avant enveloppe (0deg) */
+/* Face avant enveloppe (0deg) */
 .envelope-front-face {
   position: absolute;
   top: 50%;
@@ -97,26 +142,18 @@ body.hanna-experience-active {
   transform-origin: 50% 50%;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  will-change: transform;
   z-index: 2;
+  will-change: transform;
 }
 
-.envelope-front-img,
-.envelope-back-img,
-.open-envelope-img,
-.card-img,
-.pocket-img,
-.envelope-seal-img {
-  display: block;
+.envelope-front-img {
   width: 100%;
   height: 100%;
-  object-fit: fill;
+  display: block;
   pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
 }
 
-/* 5. Face arrière enveloppe (180deg) */
+/* Face arrière enveloppe (180deg) */
 .envelope-back-face {
   position: absolute;
   top: 50%;
@@ -124,37 +161,50 @@ body.hanna-experience-active {
   transform-origin: 50% 50%;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  will-change: transform;
   z-index: 1;
+  will-change: transform;
 }
 
-/* 6. Sceau de cire indépendant sur le dos */
+.envelope-back-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* Sceau de cire sur la face arrière */
 .envelope-seal {
   position: absolute;
   top: 50%;
   left: 50%;
   transform-origin: 50% 50%;
-  pointer-events: none;
   z-index: 5;
   will-change: transform, opacity;
 }
 
+.envelope-seal-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
 /* ==================================================
-   Scène Ouverte (OpenEnvelopeAssembly : Background + ClippingLayer + Foreground)
+   Assemblée Enveloppe Ouverte (corps invariant 820 × 490)
    ================================================== */
 .open-envelope-assembly {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 820px;
-  height: 490px;
-  pointer-events: auto;
+  top: 50%;
+  left: 50%;
+  transform-origin: 50% 50%;
+  pointer-events: none;
   opacity: 0;
   visibility: hidden;
-  will-change: opacity, transform;
+  z-index: 10;
+  will-change: transform, opacity;
 }
 
-/* 1. Arrière-plan : fond enveloppe ouverte avec rabat supérieur (old-envelope-open.png) */
+/* 1. Fond enveloppe ouverte avec rabat supérieur */
 .open-envelope-background {
   position: absolute;
   top: 50%;
@@ -165,38 +215,120 @@ body.hanna-experience-active {
   will-change: transform, opacity;
 }
 
-/* 2. Calque d'occlusion de la carte (masque strict sous le bas de l'enveloppe et sur les côtés) */
+.open-envelope-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* 2. Calque de clipping strict pour la carte dans l'enveloppe */
 .card-clipping-layer {
   position: absolute;
   top: 50%;
   left: 50%;
   transform-origin: 50% 50%;
-  pointer-events: auto;
+  pointer-events: none;
   z-index: 20;
-  clip-path: inset(-2000px 15px 8px 15px); /* Laisse sortir par le haut, coupe strictement en bas et sur les côtés */
+  overflow: visible;
+  /* Masque d'occlusion strict : interdit tout pixel sous le bas de l'enveloppe */
+  clip-path: inset(-2000px 15px 8px 15px);
   will-change: transform;
 }
 
-/* 3. Wrapper unique de la carte d'invitation (carte intacte + Hotspot + RSVP) */
+/* 3. Wrapper unique de la carte d'invitation */
 .invitation-card-wrapper {
   position: absolute;
   top: 50%;
   left: 50%;
   transform-origin: 50% 50%;
-  border-radius: 6px;
-  box-shadow: 0 10px 32px rgba(21, 80, 57, 0.12);
-  will-change: transform;
+  z-index: 20;
+  will-change: transform, opacity;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+}
+
+/* Canvas intérieur garantissant le strict respect du ratio 941 / 1672 */
+.invitation-card-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 941 / 1672;
+  container-type: inline-size;
 }
 
 .invitation-card-img {
-  display: block;
   width: 100%;
   height: 100%;
-  object-fit: fill;
-  border-radius: 6px;
+  display: block;
+  object-fit: contain;
   pointer-events: none;
+}
+
+/* Patch A : Salma's Henna Day avec nouveau S calligraphique élégant */
+.card-patch-title {
+  position: absolute;
+  top: 41.8%;
+  left: 14%;
+  width: 77%;
+  height: 8.4%;
+  background: #F3F2ED url('/hanna/invitation/card-paper-patch.png') repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.henna-title {
+  margin: 0;
+  padding: 0;
+  color: #155039;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
   user-select: none;
-  -webkit-user-drag: none;
+}
+
+.salma-initial {
+  font-family: var(--salma-initial-font, 'Great Vibes', cursive);
+  font-size: 13.5cqi;
+  font-weight: 400;
+  display: inline-block;
+  vertical-align: baseline;
+  line-height: 1;
+}
+
+.salma-body {
+  font-family: 'Alex Brush', cursive;
+  font-size: 11cqi;
+  font-weight: 400;
+  display: inline-block;
+  vertical-align: baseline;
+  line-height: 1;
+}
+
+/* Patch B : Correction de l'heure -> À PARTIR DE 18H */
+.card-patch-time {
+  position: absolute;
+  top: 61.0%;
+  left: 35%;
+  width: 30%;
+  height: 2.5%;
+  background: #F3F2ED url('/hanna/invitation/card-paper-patch.png') repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-weight: 600;
+  font-size: 3.5cqi;
+  letter-spacing: 0.14em;
+  color: #155039;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
 }
 
 /* Hotspot transparent sur l'adresse existante dans le PNG */
@@ -223,10 +355,10 @@ body.hanna-experience-active {
 /* RSVP discret intégré dans l'espace vide ivoire bas-centre */
 .card-rsvp-overlay {
   position: absolute;
-  top: 76.5%;
-  left: 47%;
-  width: 33%;
-  height: 14%;
+  top: 75.8%;
+  left: 45%;
+  width: 38%;
+  height: 18%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -246,7 +378,7 @@ body.hanna-experience-active {
   letter-spacing: 0.22em;
   color: #155039;
   text-transform: uppercase;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .rsvp-overlay-options {
@@ -254,7 +386,7 @@ body.hanna-experience-active {
   gap: 6px;
   width: 100%;
   justify-content: center;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .rsvp-btn-option {
@@ -293,6 +425,70 @@ body.hanna-experience-active {
   font-weight: 700;
 }
 
+/* Sélecteur d'accompagnants (1 à 4) */
+.rsvp-party-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 2px 0;
+  width: 100%;
+}
+
+.rsvp-party-label {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 10px;
+  font-style: italic;
+  color: #235c44;
+  letter-spacing: 0.04em;
+}
+
+.rsvp-party-buttons {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  align-items: center;
+}
+
+.rsvp-btn-party {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(21, 80, 57, 0.55);
+  background: transparent;
+  color: #155039;
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  outline: none;
+  padding: 0;
+}
+
+.rsvp-btn-party::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: -6px;
+  right: -6px;
+}
+
+.rsvp-btn-party:hover {
+  background: rgba(229, 241, 234, 0.7);
+}
+
+.rsvp-btn-party.is-selected {
+  background: rgba(21, 80, 57, 0.12);
+  border-color: #155039;
+  font-weight: 700;
+}
+
 .rsvp-btn-submit {
   background: transparent;
   border: none;
@@ -325,7 +521,8 @@ body.hanna-experience-active {
 }
 
 .rsvp-btn-submit:disabled,
-.rsvp-btn-option:disabled {
+.rsvp-btn-option:disabled,
+.rsvp-btn-party:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -515,7 +712,71 @@ body.hanna-experience-active {
   color: #c5a880;
 }
 
-/* Media queries responsive mobile */
+/* ==================================================
+   Mode Présentation Finale de la Carte (CARD_READY)
+   ================================================== */
+.experience-viewport.is-card-ready {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.experience-viewport.is-card-ready #envelope-object-3d,
+.experience-viewport.is-card-ready #open-envelope-background,
+.experience-viewport.is-card-ready #open-envelope-foreground,
+.experience-viewport.is-card-ready #ground-shadow {
+  display: none !important;
+}
+
+.experience-viewport.is-card-ready #envelope-viewport-scaler,
+.experience-viewport.is-card-ready #envelope-motion-wrapper,
+.experience-viewport.is-card-ready #open-envelope-assembly,
+.experience-viewport.is-card-ready #card-clipping-layer {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  clip-path: none !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* DESKTOP : Carte centrée, max-height 94dvh, largeur proportionnelle */
+.experience-viewport.is-card-ready .invitation-card-wrapper {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+  height: 94dvh !important;
+  max-height: 94dvh !important;
+  width: calc(94dvh * 941 / 1672) !important;
+  max-width: 530px !important;
+  border-radius: 4px;
+  box-shadow: 0 16px 40px rgba(21, 80, 57, 0.08);
+}
+
+.experience-viewport.is-card-ready .invitation-card-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.experience-viewport.is-card-ready .invitation-card-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* ==================================================
+   MOBILE <= 600px : Plein écran 100vw, 100dvh, immersion totale
+   ================================================== */
 @media (max-width: 600px) {
   .confirmation-title {
     font-size: 1.8rem;
@@ -524,14 +785,49 @@ body.hanna-experience-active {
     font-size: 1.1rem;
   }
 
+  .experience-viewport.is-card-ready {
+    background: #F7F4EC !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .experience-viewport.is-card-ready .invitation-card-wrapper {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+    height: auto !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #F7F4EC !important;
+  }
+
+  .experience-viewport.is-card-ready .invitation-card-canvas {
+    width: 100vw !important;
+    height: calc(100vw * 1672 / 941) !important;
+    max-width: 100vw !important;
+  }
+
+  .experience-viewport.is-card-ready .invitation-card-img {
+    width: 100vw !important;
+    height: calc(100vw * 1672 / 941) !important;
+    max-width: 100vw !important;
+    object-fit: contain !important;
+  }
+
   /* Ajustements subtils pour le RSVP overlay compact sur mobile */
   .rsvp-overlay-title {
     font-size: 10px;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
   .rsvp-btn-option {
     font-size: 10.5px;
     padding: 2px 5px;
+  }
+  .rsvp-btn-party {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
   }
   .rsvp-btn-submit {
     font-size: 10.5px;

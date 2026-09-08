@@ -1,5 +1,5 @@
 /**
- * HannaExperience — Orchestrateur principal du flow complet d'invitation (MVP)
+ * HannaExperience — Orchestrateur principal du flow complet d'invitation
  *
  * Flow :
  * LOADING
@@ -8,27 +8,27 @@
  * ↓
  * ENVELOPE_SETTLING
  * ↓
- * ENVELOPE_IDLE
+ * ENVELOPE_IDLE (flottement permanent + audio d'intro)
  * ↓ (clic / tap)
- * ENVELOPE_TURNING (flip 180°)
+ * ENVELOPE_TURNING (flip 180° lent 1.55s)
  * ↓
- * ENVELOPE_BACK_READY (pause contemplative)
+ * ENVELOPE_BACK_READY (pause contemplative 0.28s)
  * ↓
  * SEAL_OPENING (disparition du sceau)
  * ↓
- * OPEN_ENVELOPE_READY (bascule vers l'enveloppe ouverte)
+ * OPEN_ENVELOPE_READY (bascule vers l'enveloppe ouverte twin-image)
  * ↓
- * CARD_EXTRACTING (poses P12 à P26)
+ * CARD_EXTRACTING (extraction continue 3.0s sans zigzag)
  * ↓
- * CARD_READY (carte centrée, hotspot adresse & RSVP actif)
+ * CARD_READY (carte plein écran responsive, fondu audio, RSVP avec 1..4 personnes)
  * ↓ (choix + validation)
- * RSVP_SUBMITTING (sauvegarde localStorage)
+ * RSVP_SUBMITTING (envoi Google Apps Script ou fallback DEV)
  * ↓
  * RSVP_SUCCESS
  * ↓
- * CARD_SENDING (envol vers le haut)
+ * CARD_SENDING (envol gracieux vers le haut)
  * ↓
- * COMPLETED (message final ivoire & vert profond)
+ * COMPLETED (message final personnalisé)
  */
 
 import { ASSETS } from '../config/assets.js';
@@ -39,7 +39,8 @@ import { EnvelopeIdleAnimation } from '../animation/envelopeIdle.js';
 import { EnvelopeFlipAnimation } from '../animation/envelopeFlip.js';
 import { CardExtractionAnimation } from '../animation/cardExtraction.js';
 import { CardSendAnimation } from '../animation/cardSend.js';
-import { submitRsvp } from '../services/rsvpService.js';
+import { InvitationAudioManager } from '../audio/invitationAudio.js';
+import { getGuest, submitRsvp, RSVP_ENDPOINT } from '../services/rsvpService.js';
 
 export class HannaExperience {
   constructor(container, options = {}) {
@@ -56,8 +57,14 @@ export class HannaExperience {
     this.flip = null;
     this.extraction = null;
     this.send = null;
+    this.audioManager = null;
     this.devPanelEl = null;
     this.hasOpened = false;
+
+    // Récupération du code invité dans l'URL (?code=HN-XXXXXXXXXXXX)
+    const urlParams = new URLSearchParams(window.location.search);
+    this.guestCode = (urlParams.get('code') || '').trim();
+    this.guest = null;
 
     this.init();
   }
@@ -66,34 +73,63 @@ export class HannaExperience {
     document.body.classList.add('hanna-experience-active');
     document.body.classList.remove('calibration-mode');
 
-    // 1. Préchargement complet des 6 assets avant toute interaction
+    // 1. Initialisation audio
+    this.audioManager = new InvitationAudioManager();
+    this.audioManager.preload();
+
+    // 2. Préchargement complet des assets graphiques
     await this.preloadAssets();
 
-    // 2. Construction de la scène DOM
+    // 3. Construction de la scène DOM
     this.scene = new EnvelopeScene(this.container, {
       onOpenRequested: () => this.handleOpenRequest(),
-      onRsvpSubmit: (choice) => this.handleRsvpSubmit(choice)
+      onRsvpSubmit: (data) => this.handleRsvpSubmit(data),
+      onMuteToggle: () => {
+        const isMuted = this.audioManager.toggleMute();
+        this.scene.updateMuteDisplay(isMuted);
+      }
     });
 
-    // 3. Contrôleurs d'animation
+    // 4. Contrôleurs d'animation
     this.entrance = new EnvelopeEntranceAnimation(this.scene, this.stateManager);
     this.idle = new EnvelopeIdleAnimation(this.scene);
     this.flip = new EnvelopeFlipAnimation(this.scene, this.stateManager);
     this.extraction = new CardExtractionAnimation(this.scene, this.stateManager);
     this.send = new CardSendAnimation(this.scene, this.stateManager);
 
-    // 4. Abonnements aux états
+    // 5. Abonnements aux états
     this.stateManager.subscribe((newState) => {
       this.handleStateChange(newState);
     });
 
-    // 5. Panneau DEV motion optionnel
+    // 6. Chargement des informations de l'invité
+    await this.resolveGuestInformation();
+
+    // 7. Panneau DEV motion optionnel
     if (this.options.isDevMotion) {
       this.injectDevMotionPanel();
     }
 
-    // 6. Démarrage
+    // 8. Démarrage
     this.startExperience();
+  }
+
+  async resolveGuestInformation() {
+    if (this.guestCode) {
+      const res = await getGuest(this.guestCode);
+      if (res && res.ok && res.guest) {
+        this.guest = res.guest;
+        this.scene.configureGuest(this.guest, false);
+      } else {
+        // Code invalide ou absent du sheet
+        const isProdWithoutCode = !import.meta.env.DEV;
+        this.scene.configureGuest(null, isProdWithoutCode);
+      }
+    } else {
+      // Aucun code dans l'URL
+      const isProdWithoutCode = !import.meta.env.DEV;
+      this.scene.configureGuest(null, isProdWithoutCode);
+    }
   }
 
   preloadAssets() {
@@ -131,6 +167,10 @@ export class HannaExperience {
 
   startExperience() {
     this.hasOpened = false;
+
+    // Tentative de démarrage de la musique d'intro (si autorisée par le navigateur)
+    this.audioManager.start();
+
     this.entrance.play({
       onComplete: () => {
         this.idle.start();
@@ -139,12 +179,17 @@ export class HannaExperience {
   }
 
   async handleOpenRequest() {
+    console.log('[HannaExperience] handleOpenRequest called. Current state:', this.stateManager.getState(), 'hasOpened:', this.hasOpened);
     // Protection absolue contre double clic ou déclenchement intempestif
     if (this.hasOpened || !this.stateManager.is(EXPERIENCE_STATE.ENVELOPE_IDLE)) {
+      console.warn('[HannaExperience] handleOpenRequest ignored due to state or already opened.');
       return;
     }
     this.hasOpened = true;
     this.scene.setInteractive(false);
+
+    // Démarre la musique sur ce geste utilisateur si l'autoplay avait été restreint
+    this.audioManager.start();
 
     // 1. Stopper le floating et neutraliser en douceur y et rotation
     this.idle.stop();
@@ -153,39 +198,41 @@ export class HannaExperience {
     // 2. Dérouler le flip 180°, le sceau et la bascule vers l'open
     this.flip.playFlipSequence({
       onOpenReady: () => {
-        // 3. Extraction progressive de la carte (P12 -> P26)
+        // 3. Extraction progressive de la carte (3.0s, sans zigzag)
         this.extraction.play({
           onCardReady: () => {
-            // Carte au centre prête pour l'interaction RSVP
+            // Carte prête : fade out automatique de la musique d'ouverture
+            this.audioManager.fadeOutAndStop();
           }
         });
       }
     });
   }
 
-  async handleRsvpSubmit(choice) {
+  async handleRsvpSubmit({ status, partySize }) {
     if (!this.stateManager.is(EXPERIENCE_STATE.CARD_READY)) return;
 
     this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUBMITTING);
     this.scene.setRsvpButtonsDisabled(true);
 
     const payload = {
-      firstName: '',
-      status: choice,
+      code: this.guestCode,
+      status: status,
+      partySize: status === 'PRESENT' ? partySize : 0,
       submittedAt: new Date().toISOString()
     };
 
     const res = await submitRsvp(payload);
 
-    if (res.success) {
+    if (res.ok) {
       this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);
-      this.scene.displayConfirmation(choice);
+      this.scene.displayConfirmation(status, partySize);
 
-      // Animation d'envoi de la carte interactive vers le haut
+      // Animation d'envoi de la carte vers le haut
       this.send.play();
     } else {
       this.stateManager.setState(EXPERIENCE_STATE.CARD_READY);
-      this.scene.showRsvpError(res.error || 'Une erreur est survenue. Merci de réessayer.');
+      this.scene.showRsvpError(res.message || 'Une erreur est survenue. Merci de réessayer.');
       this.scene.setRsvpButtonsDisabled(false);
     }
   }
@@ -195,6 +242,10 @@ export class HannaExperience {
       this.scene.setInteractive(true);
     } else {
       this.scene.setInteractive(false);
+    }
+
+    if (newState === EXPERIENCE_STATE.CARD_READY) {
+      this.audioManager.fadeOutAndStop();
     }
 
     if (this.devPanelEl) {
@@ -210,13 +261,14 @@ export class HannaExperience {
     this.devPanelEl.className = 'hanna-dev-motion-panel';
     this.devPanelEl.innerHTML = `
       <div class="dev-panel-header">
-        <span class="dev-panel-title">MOTION DEV — MVP</span>
+        <span class="dev-panel-title">MOTION DEV — FINAL</span>
         <span class="dev-panel-badge" id="dev-state-badge">${this.stateManager.getState()}</span>
       </div>
       <div class="dev-panel-actions">
-        <button type="button" class="dev-btn" id="btn-replay">↺ Replay Flow</button>
-        <button type="button" class="dev-btn" id="btn-open-now">✉ Open Envelope</button>
-        <button type="button" class="dev-btn" id="btn-reset-storage">⌫ Reset RSVP</button>
+        <button type="button" class="dev-btn" id="btn-replay">↺ Replay</button>
+        <button type="button" class="dev-btn" id="btn-open-now">✉ Open</button>
+        <button type="button" class="dev-btn" id="btn-toggle-sound">♫ Sound</button>
+        <button type="button" class="dev-btn" id="btn-reset-storage">⌫ Reset</button>
         <button type="button" class="dev-btn" id="btn-toggle-bounds">⛶ Bounds</button>
       </div>
       <div class="dev-panel-links">
@@ -239,9 +291,14 @@ export class HannaExperience {
       }
     });
 
+    this.devPanelEl.querySelector('#btn-toggle-sound')?.addEventListener('click', () => {
+      const isMuted = this.audioManager.toggleMute();
+      this.scene.updateMuteDisplay(isMuted);
+    });
+
     this.devPanelEl.querySelector('#btn-reset-storage')?.addEventListener('click', () => {
       localStorage.removeItem('hanna-rsvp');
-      alert('localStorage "hanna-rsvp" réinitialisé');
+      alert('Stockage RSVP local réinitialisé');
     });
 
     this.devPanelEl.querySelector('#btn-toggle-bounds')?.addEventListener('click', () => {
@@ -251,6 +308,7 @@ export class HannaExperience {
   }
 
   destroy() {
+    if (this.audioManager) this.audioManager.destroy();
     if (this.entrance) this.entrance.kill();
     if (this.idle) this.idle.destroy();
     if (this.flip) this.flip.kill();

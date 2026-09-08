@@ -106,6 +106,9 @@ export class CardExtractionAnimation {
     // 2. Fin d'extraction : la carte originale est centrée et prête pour l'interaction
     this.timeline.add(() => {
       this.stateManager.setState(EXPERIENCE_STATE.CARD_READY);
+      if (this.scene.setCardReady) {
+        this.scene.setCardReady();
+      }
 
       // Activation du hotspot de l'adresse
       if (addressHotspot) {

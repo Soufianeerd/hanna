@@ -100,6 +100,7 @@ export class EnvelopeFlipAnimation {
     this.timeline.add(() => {
       this.stateManager.setState(EXPERIENCE_STATE.OPEN_ENVELOPE_READY);
       if (openScene) {
+        openScene.style.display = 'block';
         openScene.style.visibility = 'visible';
       }
     });
