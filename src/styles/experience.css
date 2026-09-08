@@ -42,6 +42,39 @@ body.hanna-experience-active {
   overflow: hidden;
 }
 
+/* Start Gate minimal et élégant (fond ivoire #F7F4EC) */
+.start-gate-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-ivory);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  outline: none;
+}
+
+.start-gate-text {
+  font-family: var(--font-serif);
+  font-size: clamp(14px, 3.8vw, 17px);
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  color: var(--color-forest);
+  opacity: 0.85;
+  text-align: center;
+  padding: 14px 28px;
+  animation: pulseSubtle 2.6s ease-in-out infinite alternate;
+}
+
+@keyframes pulseSubtle {
+  0% { opacity: 0.70; transform: scale(0.99); }
+  100% { opacity: 0.95; transform: scale(1.01); }
+}
+
 /* Bouton Son / Mute discret en haut à droite (zone tactile >= 40x40px) */
 .audio-toggle-btn {
   position: absolute;
@@ -95,39 +128,39 @@ body.hanna-experience-active {
   will-change: transform, opacity;
 }
 
-/* Scaler responsive global de l'enveloppe */
+/* Scaler responsive global de l'enveloppe (conforme ef01) */
 .envelope-viewport-scaler {
-  position: relative;
-  width: 0;
-  height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform-origin: 50% 50%;
-  will-change: transform;
-}
-
-/* Wrapper de mouvement (translateY, rotation Z, floating idle) */
-.envelope-motion-wrapper {
-  position: relative;
-  width: 0;
-  height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform-origin: 50% 50%;
-  will-change: transform;
-}
-
-/* Objet 3D fermé (pivot 0° -> 180° autour du centre géométrique) */
-.envelope-object-3d {
   position: absolute;
   top: 50%;
   left: 50%;
+  width: 0;
+  height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+/* Wrapper de mouvement GSAP (translateY, rotation Z, floating idle - 820 × 490) */
+.envelope-motion-wrapper {
+  position: relative;
+  width: 820px;
+  height: 490px;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+/* Objet 3D pivot (preserve-3d, 820 × 490 centré) */
+.envelope-object-3d {
+  position: relative;
+  width: 820px;
+  height: 490px;
   transform-style: preserve-3d;
-  transform-origin: 50% 50%;
-  will-change: transform;
   outline: none;
+  cursor: default;
+  will-change: transform;
 }
 
 .envelope-object-3d.is-interactive {
@@ -190,18 +223,18 @@ body.hanna-experience-active {
 }
 
 /* ==================================================
-   Assemblée Enveloppe Ouverte (corps invariant 820 × 490)
+   Assemblée Enveloppe Ouverte (conforme ef01 : 820 × 490)
    ================================================== */
 .open-envelope-assembly {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform-origin: 50% 50%;
-  pointer-events: none;
+  top: 0;
+  left: 0;
+  width: 820px;
+  height: 490px;
+  pointer-events: auto;
   opacity: 0;
   visibility: hidden;
-  z-index: 10;
-  will-change: transform, opacity;
+  will-change: opacity, transform;
 }
 
 /* 1. Fond enveloppe ouverte avec rabat supérieur */
@@ -231,8 +264,8 @@ body.hanna-experience-active {
   pointer-events: none;
   z-index: 20;
   overflow: visible;
-  /* Masque d'occlusion strict : interdit tout pixel sous le bas de l'enveloppe */
-  clip-path: inset(-2000px 15px 8px 15px);
+  /* Masque d'occlusion strict : sortie autorisée vers le haut, JAMAIS sous le bord inférieur ni sur les côtés */
+  clip-path: inset(-2000px 0px 0px 0px);
   will-change: transform;
 }
 
@@ -331,7 +364,7 @@ body.hanna-experience-active {
   user-select: none;
 }
 
-/* Hotspot transparent sur l'adresse existante dans le PNG */
+/* Hotspot 100% invisible sur l'adresse existante dans le PNG */
 .card-address-hotspot {
   position: absolute;
   top: 66.5%;
@@ -341,15 +374,21 @@ body.hanna-experience-active {
   z-index: 10;
   cursor: pointer;
   pointer-events: none; /* Activé à CARD_READY */
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
+  -webkit-touch-callout: none;
   text-decoration: none;
-  outline: none;
 }
 
 .card-address-hotspot:hover,
 .card-address-hotspot:focus-visible {
-  background-color: rgba(21, 80, 57, 0.04);
+  background-color: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
 }
 
 /* 5. RSVP discret dans l'espace vide ivoire bas-centre (Sans accompagnants) */

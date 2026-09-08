@@ -43,11 +43,12 @@ import { MOTION } from '../config/motion.js';
 import { computeFinalCardRect } from '../utils/visualViewport.js';
 
 export class EnvelopeScene {
-  constructor(container, { onOpenRequested, onRsvpSubmit, onMuteToggle } = {}) {
+  constructor(container, { onOpenRequested, onRsvpSubmit, onMuteToggle, onStartGateTap } = {}) {
     this.container = container;
     this.onOpenRequested = onOpenRequested;
     this.onRsvpSubmit = onRsvpSubmit;
     this.onMuteToggle = onMuteToggle;
+    this.onStartGateTap = onStartGateTap;
 
     this.runtimeScale = 1;
     this.viewportWidth = window.innerWidth;
@@ -71,6 +72,11 @@ export class EnvelopeScene {
 
     this.container.innerHTML = `
       <div class="experience-viewport" id="experience-viewport">
+        <!-- Start Gate minimal et élégant (fond ivoire #F7F4EC) -->
+        <div class="start-gate-overlay" id="start-gate-overlay" role="button" tabindex="0" aria-label="Toucher pour découvrir l’invitation">
+          <div class="start-gate-text">Toucher pour découvrir l’invitation</div>
+        </div>
+
         <!-- Bouton son discret en haut à droite (accessible 42x42px min) -->
         <button type="button" class="audio-toggle-btn" id="audio-toggle-btn" aria-label="Couper la musique" title="Couper la musique">
           <svg class="audio-icon audio-icon-on" id="audio-icon-on" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -108,15 +114,13 @@ export class EnvelopeScene {
                 </div>
               </div>
 
-              <!-- Guide de validation visuelle (DEV) -->
-              <div class="physical-bounds-guide" id="physical-bounds-guide">
-                <span class="bounds-tag">820 × 490</span>
-              </div>
+              <!-- Guide de calibration DEV optionnel -->
+              <div class="physical-bounds-guide" id="physical-bounds-guide"></div>
             </div>
 
-            <!-- 2. Assemblée enveloppe ouverte (corps physique strictement invariant) -->
+            <!-- 2. Assemblée Enveloppe Ouverte -->
             <div class="open-envelope-assembly" id="open-envelope-assembly">
-              <!-- Fond enveloppe ouverte avec rabat supérieur (old-envelope-open.png) -->
+              <!-- Fond enveloppe ouverte avec rabat supérieur -->
               <div class="open-envelope-background" id="open-envelope-background">
                 <img class="open-envelope-img" src="${ASSETS.envelopeOpenReference.src}" alt="Fond enveloppe ouverte" />
               </div>
@@ -193,6 +197,7 @@ export class EnvelopeScene {
   cacheElements() {
     this.elements = {
       viewport: this.container.querySelector('#experience-viewport'),
+      startGate: this.container.querySelector('#start-gate-overlay'),
       shadow: this.container.querySelector('#ground-shadow'),
       scaler: this.container.querySelector('#envelope-viewport-scaler'),
       motionWrapper: this.container.querySelector('#envelope-motion-wrapper'),
@@ -230,62 +235,53 @@ export class EnvelopeScene {
     };
   }
 
+  setupResizeListener() {
+    window.addEventListener('resize', () => {
+      this.updateResponsiveScale();
+    });
+  }
+
   applyCalibratedGeometry() {
     const {
       object3D,
       frontFace,
       backFace,
       seal,
-      boundsGuide,
-      openScene,
       openBackground,
       openForeground,
       cardClippingLayer,
       card
     } = this.elements;
 
-    const geom = GEOMETRY;
+    const { closedFront, closedBack, seal: sealGeom, card: cardGeom } = GEOMETRY;
     const openGeom = OPEN_ENVELOPE_GEOMETRY;
 
-    // 1. BOÎTE PHYSIQUE CANONIQUE DE L'ENVELOPPE (820 × 490)
+    // 1. BOÎTE PHYSIQUE CANONIQUE DE L'ENVELOPPE (820 × 490) - Conforme ef01
     object3D.style.width = `${PHYSICAL_ENVELOPE.width}px`;
     object3D.style.height = `${PHYSICAL_ENVELOPE.height}px`;
-    object3D.style.marginLeft = `${-PHYSICAL_ENVELOPE.width / 2}px`;
-    object3D.style.marginTop = `${-PHYSICAL_ENVELOPE.height / 2}px`;
 
-    boundsGuide.style.width = `${PHYSICAL_ENVELOPE.width}px`;
-    boundsGuide.style.height = `${PHYSICAL_ENVELOPE.height}px`;
+    // 2. FACE AVANT (0deg) - Conforme ef01 (closedFront.x, closedFront.y, PAS d'offsetX/offsetY)
+    frontFace.style.width = `${closedFront.width}px`;
+    frontFace.style.height = `${closedFront.height}px`;
+    frontFace.style.marginLeft = `${-closedFront.width / 2}px`;
+    frontFace.style.marginTop = `${-closedFront.height / 2}px`;
+    frontFace.style.transform = `translate3d(${closedFront.x}px, ${closedFront.y}px, 0)`;
 
-    // 2. FACE AVANT (0deg)
-    const front = geom.closedFront;
-    frontFace.style.width = `${front.width}px`;
-    frontFace.style.height = `${front.height}px`;
-    frontFace.style.marginLeft = `${-front.width / 2}px`;
-    frontFace.style.marginTop = `${-front.height / 2}px`;
-    frontFace.style.transform = `translate3d(${front.offsetX}px, ${front.offsetY}px, 0.5px)`;
+    // 3. FACE ARRIÈRE FERMÉE (180deg) - Conforme ef01 (closedBack.x, closedBack.y)
+    backFace.style.width = `${closedBack.width}px`;
+    backFace.style.height = `${closedBack.height}px`;
+    backFace.style.marginLeft = `${-closedBack.width / 2}px`;
+    backFace.style.marginTop = `${-closedBack.height / 2}px`;
+    backFace.style.transform = `translate3d(${closedBack.x}px, ${closedBack.y}px, 0) rotateY(180deg)`;
 
-    // 3. FACE ARRIÈRE FERMÉE (180deg)
-    const back = geom.closedBack;
-    backFace.style.width = `${back.width}px`;
-    backFace.style.height = `${back.height}px`;
-    backFace.style.marginLeft = `${-back.width / 2}px`;
-    backFace.style.marginTop = `${-back.height / 2}px`;
-    backFace.style.transform = `rotateY(180deg) translate3d(${-back.offsetX}px, ${back.offsetY}px, 0.5px)`;
-
-    // 4. SCEAU DE CIRE
-    const sealGeom = geom.seal;
+    // 4. SCEAU DE CIRE - Conforme ef01 (sealGeom.x, sealGeom.y, z=1px)
     seal.style.width = `${sealGeom.width}px`;
     seal.style.height = `${sealGeom.height}px`;
     seal.style.marginLeft = `${-sealGeom.width / 2}px`;
     seal.style.marginTop = `${-sealGeom.height / 2}px`;
-    seal.style.transform = `translate3d(${sealGeom.offsetX}px, ${sealGeom.offsetY}px, 2px)`;
+    seal.style.transform = `translate3d(${sealGeom.x}px, ${sealGeom.y}px, 1px)`;
 
-    // 5. ASSEMBLÉE ENVELOPPE OUVERTE
-    openScene.style.width = `${PHYSICAL_ENVELOPE.width}px`;
-    openScene.style.height = `${PHYSICAL_ENVELOPE.height}px`;
-    openScene.style.marginLeft = `${-PHYSICAL_ENVELOPE.width / 2}px`;
-    openScene.style.marginTop = `${-PHYSICAL_ENVELOPE.height / 2}px`;
-
+    // 5. ASSEMBLÉE ENVELOPPE OUVERTE - Conforme ef01
     // OPEN ENVELOPE BACKGROUND (old-envelope-open.png calibré sur le corps 820 × 490)
     openBackground.style.width = `${openGeom.openBack.width}px`;
     openBackground.style.height = `${openGeom.openBack.height}px`;
@@ -307,7 +303,6 @@ export class EnvelopeScene {
     cardClippingLayer.style.marginTop = `${-PHYSICAL_ENVELOPE.height / 2}px`;
 
     // INVITATION CARD WRAPPER DANS L'ENVELOPPE (AVANT EXTRACTION)
-    const cardGeom = geom.card || geom.invitationCard;
     card.style.width = `${cardGeom.width}px`;
     card.style.height = `${cardGeom.height}px`;
     card.style.marginLeft = `${-cardGeom.width / 2}px`;
@@ -316,6 +311,27 @@ export class EnvelopeScene {
   }
 
   setupInteractions() {
+    // 0. Start Gate Tap (iOS Safari gesture unlock & desktop click)
+    if (this.elements.startGate) {
+      let triggered = false;
+      const handleStartGate = (e) => {
+        if (triggered) return;
+        triggered = true;
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.onStartGateTap) {
+          this.onStartGateTap();
+        }
+      };
+      this.elements.startGate.addEventListener('pointerdown', handleStartGate);
+      this.elements.startGate.addEventListener('click', handleStartGate);
+      this.elements.startGate.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          handleStartGate(e);
+        }
+      });
+    }
+
     // 1. Clic / Touch sur l'enveloppe pour ouvrir
     const handleOpen = (e) => {
       if (this.onOpenRequested) {
@@ -383,6 +399,33 @@ export class EnvelopeScene {
       const isSelected = btn.dataset.choice === choice;
       btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
       btn.classList.toggle('is-selected', isSelected);
+    });
+  }
+
+  /**
+   * Fait disparaître le start gate en douceur (~250ms)
+   * @param {() => void} [onComplete]
+   */
+  hideStartGate(onComplete) {
+    if (!this.elements.startGate) {
+      if (onComplete) onComplete();
+      return;
+    }
+    gsap.to(this.elements.startGate, {
+      opacity: 0,
+      duration: 0.25,
+      ease: 'power1.out',
+      onStart: () => {
+        if (this.elements.startGate) {
+          this.elements.startGate.style.pointerEvents = 'none';
+        }
+      },
+      onComplete: () => {
+        if (this.elements.startGate) {
+          this.elements.startGate.style.display = 'none';
+        }
+        if (onComplete) onComplete();
+      }
     });
   }
 

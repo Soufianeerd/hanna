@@ -31,6 +31,7 @@
  * COMPLETED (message final personnalisé)
  */
 
+import gsap from 'gsap';
 import { ASSETS } from '../config/assets.js';
 import { EXPERIENCE_STATE, ExperienceStateManager } from './experienceState.js';
 import { EnvelopeScene } from './EnvelopeScene.js';
@@ -86,25 +87,19 @@ export class HannaExperience {
     // 2. Préchargement complet des assets graphiques
     await this.preloadAssets();
 
-    // 3. Construction de la scène DOM
+    // 3. Construction de la scène DOM avec Start Gate
     this.scene = new EnvelopeScene(this.container, {
       onOpenRequested: () => this.handleOpenRequest(),
       onRsvpSubmit: (data) => this.handleRsvpSubmit(data),
       onMuteToggle: () => {
         const isMuted = this.audioManager.toggleMute();
         this.scene.updateMuteDisplay(isMuted);
-      }
+      },
+      onStartGateTap: () => this.handleStartGateTap()
     });
 
     // Synchronisation de la disponibilité audio avec le bouton son
     this.scene.setAudioAvailable(this.audioManager.available);
-
-    // Écouteur synchrone au premier pointerdown sur l'enveloppe pour iOS
-    if (this.scene.elements.object3D) {
-      this.scene.elements.object3D.addEventListener('pointerdown', () => {
-        this.audioManager.playOnUserGesture();
-      }, { once: true, passive: true });
-    }
 
     // 4. Contrôleurs d'animation
     this.entrance = new EnvelopeEntranceAnimation(this.scene, this.stateManager);
@@ -126,8 +121,23 @@ export class HannaExperience {
       this.injectDevMotionPanel();
     }
 
-    // 8. Démarrage
-    this.startExperience();
+    // Note : Le démarrage effectif (startExperience) est déclenché par le tap sur le Start Gate
+    // afin de déverrouiller la musique dès le geste initial sur iPhone Safari
+  }
+
+  /**
+   * Déclencheur au geste utilisateur initial sur le Start Gate
+   * DANS LE MÊME CALL STACK : audio.play(), puis fade du gate en 250ms et entrée de l'enveloppe
+   */
+  handleStartGateTap() {
+    // 1. Musique lancée immédiatement sur le geste
+    this.audioManager.playOnUserGesture();
+
+    // 2. Disparition fluide du texte (~250ms)
+    this.scene.hideStartGate(() => {
+      // 3. Arrivée de l'enveloppe depuis le bas
+      this.startExperience();
+    });
   }
 
   async resolveGuestInformation() {
@@ -204,8 +214,10 @@ export class HannaExperience {
     this.hasOpened = true;
     this.scene.setInteractive(false);
 
-    // Démarre la musique sur ce geste utilisateur si l'audio est disponible
-    this.audioManager.playOnUserGesture();
+    // Fallback de sécurité si l'audio n'était pas déjà en cours de lecture
+    if (!this.audioManager.isPlaying) {
+      this.audioManager.playOnUserGesture();
+    }
 
     // 1. Stopper le floating et neutraliser en douceur y et rotation
     this.idle.stop();
@@ -217,8 +229,11 @@ export class HannaExperience {
         // 3. Extraction progressive puis présentation continue
         this.extraction.play({
           onCardReady: () => {
-            // Carte prête : fade out automatique de la musique d'ouverture
-            this.audioManager.fadeOutAndStop();
+            // CardPresentation totalement terminée et RSVP totalement apparu :
+            // Attendre encore environ 0.8s puis fondu doux sur 1.2s
+            gsap.delayedCall(0.8, () => {
+              this.audioManager.fadeOutAndStop(1.2);
+            });
           }
         });
       }
@@ -259,9 +274,7 @@ export class HannaExperience {
       this.scene.setInteractive(false);
     }
 
-    if (newState === EXPERIENCE_STATE.CARD_READY) {
-      this.audioManager.fadeOutAndStop();
-    }
+    // Note : Le fade out audio est géré de manière unique et temporisée dans onCardReady (delay 0.8s, fade 1.2s)
 
     if (this.devPanelEl) {
       const stateBadge = this.devPanelEl.querySelector('#dev-state-badge');

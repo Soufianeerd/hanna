@@ -69,12 +69,12 @@ export class CardPresentationAnimation {
       cardCanvas.style.height = '100%';
     }
 
-    // 5. Disparition fluide en parallèle des faces de l'enveloppe
+    // 5. Disparition fluide en parallèle des faces de l'enveloppe (recul doux)
     const envelopeElements = [openBackground, openForeground].filter(Boolean);
     if (envelopeElements.length > 0) {
       gsap.to(envelopeElements, {
-        y: '+=45',
-        scale: 0.94,
+        y: '+=40',
+        scale: 0.96,
         opacity: 0,
         duration: 0.70,
         ease: 'power2.inOut',
