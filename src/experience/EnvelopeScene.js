@@ -23,22 +23,24 @@
  * │           ├── OpenEnvelopeBackground (old-envelope-open.png, z-index 10)
  * │           │
  * │           ├── CardClippingLayer (masque strict sous le bas et sur les côtés, z-index 20)
- * │           │   └── InvitationCardWrapper (z-index 20 -> 50)
+ * │           │   └── InvitationCardWrapper (z-index 20 -> 500 fixed)
  * │           │       └── InvitationCardCanvas (ratio natif 941/1672)
  * │           │           ├── <img carteInvitation.png>
  * │           │           ├── Patch Salma's Henna Day (nouveau S calligraphique)
  * │           │           ├── Patch À PARTIR DE 18H
  * │           │           ├── AddressHotspot (<a> transparent vers Google Maps)
- * │           │           └── CardRsvpOverlay (RSVP compact intégré dans l'espace vide ivoire)
+ * │           │           └── CardRsvpOverlay (RSVP épuré Présent(e) / Absent(e))
  * │           │
  * │           └── OpenEnvelopeForeground (old-envelope-open.png clippé sur la poche, z-index 30)
  * │
  * └── ConfirmationMessage (Message final après envoi)
  */
 
+import gsap from 'gsap';
 import { ASSETS } from '../config/assets.js';
 import { GEOMETRY, OPEN_ENVELOPE_GEOMETRY, PHYSICAL_ENVELOPE } from '../config/geometry.js';
 import { MOTION } from '../config/motion.js';
+import { computeFinalCardRect } from '../utils/visualViewport.js';
 
 export class EnvelopeScene {
   constructor(container, { onOpenRequested, onRsvpSubmit, onMuteToggle } = {}) {
@@ -52,9 +54,8 @@ export class EnvelopeScene {
     this.viewportHeight = window.innerHeight;
     this.resizeObserver = null;
     this.selectedChoice = null;
-    this.selectedPartySize = 1;
-    this.maxPartySize = 4;
     this.isCardReadyState = false;
+    this.finalCardGeometry = null;
     this.guestInfo = null;
     this.isRsvpDisabledForDemo = false;
 
@@ -70,7 +71,7 @@ export class EnvelopeScene {
 
     this.container.innerHTML = `
       <div class="experience-viewport" id="experience-viewport">
-        <!-- Bouton son discret en haut à droite (accessible 40x40px min) -->
+        <!-- Bouton son discret en haut à droite (accessible 42x42px min) -->
         <button type="button" class="audio-toggle-btn" id="audio-toggle-btn" aria-label="Couper la musique" title="Couper la musique">
           <svg class="audio-icon audio-icon-on" id="audio-icon-on" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -149,7 +150,7 @@ export class EnvelopeScene {
                        rel="noopener noreferrer" 
                        aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps"></a>
 
-                    <!-- RSVP discret dans l'espace vide ivoire bas-centre -->
+                    <!-- RSVP discret dans l'espace vide ivoire bas-centre (Sans accompagnants) -->
                     <div class="card-rsvp-overlay" id="card-rsvp-overlay">
                       <div class="rsvp-overlay-title">RSVP</div>
                       
@@ -157,17 +158,6 @@ export class EnvelopeScene {
                       <div class="rsvp-overlay-options" role="group" aria-label="Présence à l'événement">
                         <button type="button" class="rsvp-btn-option" data-choice="PRESENT" aria-pressed="false">Présent(e)</button>
                         <button type="button" class="rsvp-btn-option" data-choice="ABSENT" aria-pressed="false">Absent(e)</button>
-                      </div>
-
-                      <!-- Sélecteur d'accompagnants (affiché si Présent) -->
-                      <div class="rsvp-party-selector" id="rsvp-party-selector" style="display: none;">
-                        <span class="rsvp-party-label">Nombre de personnes</span>
-                        <div class="rsvp-party-buttons" id="rsvp-party-buttons" role="group" aria-label="Nombre de personnes">
-                          <button type="button" class="rsvp-btn-party is-selected" data-size="1" aria-pressed="true">1</button>
-                          <button type="button" class="rsvp-btn-party" data-size="2" aria-pressed="false">2</button>
-                          <button type="button" class="rsvp-btn-party" data-size="3" aria-pressed="false">3</button>
-                          <button type="button" class="rsvp-btn-party" data-size="4" aria-pressed="false">4</button>
-                        </div>
                       </div>
 
                       <button type="button" class="rsvp-btn-submit" id="rsvp-btn-submit">Valider</button>
@@ -228,9 +218,7 @@ export class EnvelopeScene {
       addressHotspot: this.container.querySelector('#card-address-hotspot'),
       rsvpOverlay: this.container.querySelector('#card-rsvp-overlay'),
 
-      // RSVP & Companion Selector
-      rsvpPartySelector: this.container.querySelector('#rsvp-party-selector'),
-      rsvpPartyBtns: this.container.querySelectorAll('.rsvp-btn-party'),
+      // RSVP
       rsvpSubmit: this.container.querySelector('#rsvp-btn-submit'),
       rsvpStatusMsg: this.container.querySelector('#rsvp-feedback-msg'),
       rsvpOptionBtns: this.container.querySelectorAll('.rsvp-btn-option'),
@@ -258,66 +246,68 @@ export class EnvelopeScene {
 
     const geom = GEOMETRY;
     const openGeom = OPEN_ENVELOPE_GEOMETRY;
-    const cardGeom = geom.card || geom.invitationCard;
 
-    // BOÎTE PHYSIQUE MAÎTRESSE : 820 × 490
-    [object3D, boundsGuide].forEach((el) => {
-      if (el) {
-        el.style.width = `${PHYSICAL_ENVELOPE.width}px`;
-        el.style.height = `${PHYSICAL_ENVELOPE.height}px`;
-        el.style.marginLeft = `${-PHYSICAL_ENVELOPE.width / 2}px`;
-        el.style.marginTop = `${-PHYSICAL_ENVELOPE.height / 2}px`;
-      }
-    });
+    // 1. BOÎTE PHYSIQUE CANONIQUE DE L'ENVELOPPE (820 × 490)
+    object3D.style.width = `${PHYSICAL_ENVELOPE.width}px`;
+    object3D.style.height = `${PHYSICAL_ENVELOPE.height}px`;
+    object3D.style.marginLeft = `${-PHYSICAL_ENVELOPE.width / 2}px`;
+    object3D.style.marginTop = `${-PHYSICAL_ENVELOPE.height / 2}px`;
 
-    // FACE AVANT
-    frontFace.style.width = `${geom.closedFront.width}px`;
-    frontFace.style.height = `${geom.closedFront.height}px`;
-    frontFace.style.marginLeft = `${-geom.closedFront.width / 2}px`;
-    frontFace.style.marginTop = `${-geom.closedFront.height / 2}px`;
-    frontFace.style.transform = `translate3d(${geom.closedFront.x}px, ${geom.closedFront.y}px, 0)`;
+    boundsGuide.style.width = `${PHYSICAL_ENVELOPE.width}px`;
+    boundsGuide.style.height = `${PHYSICAL_ENVELOPE.height}px`;
 
-    // FACE ARRIÈRE
-    backFace.style.width = `${geom.closedBack.width}px`;
-    backFace.style.height = `${geom.closedBack.height}px`;
-    backFace.style.marginLeft = `${-geom.closedBack.width / 2}px`;
-    backFace.style.marginTop = `${-geom.closedBack.height / 2}px`;
-    backFace.style.transform = `translate3d(${geom.closedBack.x}px, ${geom.closedBack.y}px, 0) rotateY(180deg)`;
+    // 2. FACE AVANT (0deg)
+    const front = geom.closedFront;
+    frontFace.style.width = `${front.width}px`;
+    frontFace.style.height = `${front.height}px`;
+    frontFace.style.marginLeft = `${-front.width / 2}px`;
+    frontFace.style.marginTop = `${-front.height / 2}px`;
+    frontFace.style.transform = `translate3d(${front.offsetX}px, ${front.offsetY}px, 0.5px)`;
 
-    // SCEAU DE CIRE
-    seal.style.width = `${geom.seal.width}px`;
-    seal.style.height = `${geom.seal.height}px`;
-    seal.style.marginLeft = `${-geom.seal.width / 2}px`;
-    seal.style.marginTop = `${-geom.seal.height / 2}px`;
-    seal.style.transform = `translate3d(${geom.seal.x}px, ${geom.seal.y}px, 1px)`;
+    // 3. FACE ARRIÈRE FERMÉE (180deg)
+    const back = geom.closedBack;
+    backFace.style.width = `${back.width}px`;
+    backFace.style.height = `${back.height}px`;
+    backFace.style.marginLeft = `${-back.width / 2}px`;
+    backFace.style.marginTop = `${-back.height / 2}px`;
+    backFace.style.transform = `rotateY(180deg) translate3d(${-back.offsetX}px, ${back.offsetY}px, 0.5px)`;
 
-    // ASSEMBLÉE ENVELOPPE OUVERTE
+    // 4. SCEAU DE CIRE
+    const sealGeom = geom.seal;
+    seal.style.width = `${sealGeom.width}px`;
+    seal.style.height = `${sealGeom.height}px`;
+    seal.style.marginLeft = `${-sealGeom.width / 2}px`;
+    seal.style.marginTop = `${-sealGeom.height / 2}px`;
+    seal.style.transform = `translate3d(${sealGeom.offsetX}px, ${sealGeom.offsetY}px, 2px)`;
+
+    // 5. ASSEMBLÉE ENVELOPPE OUVERTE
     openScene.style.width = `${PHYSICAL_ENVELOPE.width}px`;
     openScene.style.height = `${PHYSICAL_ENVELOPE.height}px`;
     openScene.style.marginLeft = `${-PHYSICAL_ENVELOPE.width / 2}px`;
     openScene.style.marginTop = `${-PHYSICAL_ENVELOPE.height / 2}px`;
 
-    // BACKGROUND ENVELOPPE OUVERTE
+    // OPEN ENVELOPE BACKGROUND (old-envelope-open.png calibré sur le corps 820 × 490)
     openBackground.style.width = `${openGeom.openBack.width}px`;
     openBackground.style.height = `${openGeom.openBack.height}px`;
     openBackground.style.marginLeft = `${-openGeom.openBack.width / 2}px`;
     openBackground.style.marginTop = `${-openGeom.openBack.height / 2}px`;
     openBackground.style.transform = `translate3d(${openGeom.openBack.x}px, ${openGeom.openBack.y}px, 0)`;
 
-    // FOREGROUND (POCHE DÉCOUPÉE)
+    // OPEN ENVELOPE FOREGROUND (MÊME IMAGE ET MÊME POSITION PHYSIQUE)
     openForeground.style.width = `${openGeom.openBack.width}px`;
     openForeground.style.height = `${openGeom.openBack.height}px`;
     openForeground.style.marginLeft = `${-openGeom.openBack.width / 2}px`;
     openForeground.style.marginTop = `${-openGeom.openBack.height / 2}px`;
     openForeground.style.transform = `translate3d(${openGeom.openBack.x}px, ${openGeom.openBack.y}px, 0)`;
 
-    // CARD CLIPPING LAYER
+    // CARD CLIPPING LAYER (boîte physique 820 × 490 du corps de l'enveloppe)
     cardClippingLayer.style.width = `${PHYSICAL_ENVELOPE.width}px`;
     cardClippingLayer.style.height = `${PHYSICAL_ENVELOPE.height}px`;
     cardClippingLayer.style.marginLeft = `${-PHYSICAL_ENVELOPE.width / 2}px`;
     cardClippingLayer.style.marginTop = `${-PHYSICAL_ENVELOPE.height / 2}px`;
 
-    // INVITATION CARD WRAPPER
+    // INVITATION CARD WRAPPER DANS L'ENVELOPPE (AVANT EXTRACTION)
+    const cardGeom = geom.card || geom.invitationCard;
     card.style.width = `${cardGeom.width}px`;
     card.style.height = `${cardGeom.height}px`;
     card.style.marginLeft = `${-cardGeom.width / 2}px`;
@@ -326,7 +316,7 @@ export class EnvelopeScene {
   }
 
   setupInteractions() {
-    // 1. Clic sur l'enveloppe pour ouvrir
+    // 1. Clic / Touch sur l'enveloppe pour ouvrir
     const handleOpen = (e) => {
       if (this.onOpenRequested) {
         this.onOpenRequested(e);
@@ -334,6 +324,10 @@ export class EnvelopeScene {
     };
 
     this.elements.object3D.addEventListener('click', handleOpen);
+    this.elements.object3D.addEventListener('touchend', (e) => {
+      handleOpen(e);
+    });
+    this.elements.object3D.addEventListener('pointerup', handleOpen);
     this.elements.object3D.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -350,16 +344,7 @@ export class EnvelopeScene {
       });
     });
 
-    // 3. Sélection du nombre d'accompagnants (1 à 4)
-    this.elements.rsvpPartyBtns.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const size = parseInt(btn.dataset.size, 10) || 1;
-        this.selectPartySize(size);
-      });
-    });
-
-    // 4. Soumission RSVP
+    // 3. Soumission RSVP
     this.elements.rsvpSubmit?.addEventListener('click', (e) => {
       e.stopPropagation();
 
@@ -376,13 +361,12 @@ export class EnvelopeScene {
       this.clearRsvpError();
       if (this.onRsvpSubmit) {
         this.onRsvpSubmit({
-          status: this.selectedChoice,
-          partySize: this.selectedChoice === 'PRESENT' ? this.selectedPartySize : 0
+          status: this.selectedChoice
         });
       }
     });
 
-    // 5. Bouton Audio Mute
+    // 4. Bouton Audio Mute
     this.elements.audioBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       if (this.onMuteToggle) {
@@ -400,36 +384,21 @@ export class EnvelopeScene {
       btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
       btn.classList.toggle('is-selected', isSelected);
     });
-
-    // Afficher ou masquer le sélecteur d'accompagnants
-    if (this.elements.rsvpPartySelector) {
-      if (choice === 'PRESENT') {
-        this.elements.rsvpPartySelector.style.display = 'flex';
-        if (!this.selectedPartySize || this.selectedPartySize < 1) {
-          this.selectPartySize(1);
-        }
-      } else {
-        this.elements.rsvpPartySelector.style.display = 'none';
-        this.selectedPartySize = 0;
-      }
-    }
   }
 
-  selectPartySize(size) {
-    const clampedSize = Math.min(this.maxPartySize, Math.max(1, size));
-    this.selectedPartySize = clampedSize;
-
-    this.elements.rsvpPartyBtns.forEach((btn) => {
-      const btnSize = parseInt(btn.dataset.size, 10);
-      const isSelected = btnSize === clampedSize;
-      btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-      btn.classList.toggle('is-selected', isSelected);
-    });
+  /**
+   * Active ou masque le bouton audio si le fichier son est disponible ou absent
+   * @param {boolean} available 
+   */
+  setAudioAvailable(available) {
+    if (this.elements.audioBtn) {
+      this.elements.audioBtn.style.display = available ? 'flex' : 'none';
+    }
   }
 
   /**
    * Configure les informations d'invité obtenues depuis l'API ou le mode démo
-   * @param {{ firstName?: string, maxPartySize?: number, rsvp?: string, partySize?: number }|null} guest
+   * @param {{ firstName?: string, rsvp?: string }|null} guest
    * @param {boolean} isProductionWithoutCode
    */
   configureGuest(guest, isProductionWithoutCode = false) {
@@ -445,24 +414,9 @@ export class EnvelopeScene {
     }
 
     if (guest) {
-      this.maxPartySize = Math.min(4, Math.max(1, guest.maxPartySize || 4));
-
-      // Adapter l'affichage des boutons 1..4 selon maxPartySize
-      this.elements.rsvpPartyBtns.forEach((btn) => {
-        const btnSize = parseInt(btn.dataset.size, 10);
-        if (btnSize > this.maxPartySize) {
-          btn.style.display = 'none';
-        } else {
-          btn.style.display = 'inline-block';
-        }
-      });
-
       // Pré-sélection de la réponse existante si déjà soumise
       if (guest.rsvp === 'PRESENT' || guest.rsvp === 'ABSENT') {
         this.selectRsvpChoice(guest.rsvp);
-        if (guest.rsvp === 'PRESENT' && guest.partySize) {
-          this.selectPartySize(guest.partySize);
-        }
       }
     }
   }
@@ -485,9 +439,6 @@ export class EnvelopeScene {
     this.elements.rsvpOptionBtns.forEach((btn) => {
       btn.disabled = disabled;
     });
-    this.elements.rsvpPartyBtns.forEach((btn) => {
-      btn.disabled = disabled;
-    });
     if (this.elements.rsvpSubmit) {
       this.elements.rsvpSubmit.disabled = disabled;
       if (disabled) {
@@ -498,16 +449,19 @@ export class EnvelopeScene {
     }
   }
 
-  displayConfirmation(status, partySize = 1) {
+  displayConfirmation(status) {
     const { confirmationTitle, confirmationText } = this.elements;
     if (status === 'PRESENT') {
-      const persStr = partySize > 1 ? `${partySize} personnes` : '1 personne';
       confirmationTitle.textContent = 'Merci pour votre présence !';
-      confirmationText.innerHTML = `Votre confirmation a bien été enregistrée pour <strong>${persStr}</strong>.<br />Nous avons hâte de partager ce moment précieux avec vous.`;
+      confirmationText.innerHTML = `Votre confirmation de présence a bien été enregistrée.<br />Nous avons hâte de partager ce moment précieux avec vous.`;
     } else {
       confirmationTitle.textContent = 'Merci pour votre réponse';
       confirmationText.innerHTML = `Votre réponse a bien été prise en compte.<br />Nous regrettons votre absence et penserons bien à vous.`;
     }
+  }
+
+  setFinalCardGeometry(targetRect) {
+    this.finalCardGeometry = targetRect;
   }
 
   setCardReady() {
@@ -515,7 +469,6 @@ export class EnvelopeScene {
     if (this.elements.viewport) {
       this.elements.viewport.classList.add('is-card-ready');
     }
-    this.updateResponsiveScale();
   }
 
   updateMuteDisplay(isMuted) {
@@ -560,10 +513,19 @@ export class EnvelopeScene {
     this.viewportWidth = window.innerWidth;
     this.viewportHeight = window.innerHeight;
 
-    // Si la carte est prête et sur mobile, elle passe en mode plein écran immersion
-    if (this.isCardReadyState && this.viewportWidth <= 600) {
-      if (this.elements.scaler) {
-        this.elements.scaler.style.transform = 'none';
+    // Si la carte est en état CARD_READY, son positionnement est géré par la géométrie fixed
+    if (this.isCardReadyState) {
+      if (this.elements.card) {
+        const targetRect = computeFinalCardRect();
+        this.finalCardGeometry = targetRect;
+        gsap.to(this.elements.card, {
+          left: targetRect.left,
+          top: targetRect.top,
+          width: targetRect.width,
+          height: targetRect.height,
+          duration: 0.25,
+          ease: 'power1.out'
+        });
       }
       return;
     }
@@ -590,11 +552,21 @@ export class EnvelopeScene {
   }
 
   setupResizeListener() {
+    let resizeTimer = null;
     this.resizeHandler = () => {
-      this.updateResponsiveScale();
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        this.updateResponsiveScale();
+      }, 60);
     };
 
     window.addEventListener('resize', this.resizeHandler, { passive: true });
+
+    // Écoute du Visual Viewport pour adapter la position lors des mouvements de barre Safari
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', this.resizeHandler, { passive: true });
+      window.visualViewport.addEventListener('scroll', this.resizeHandler, { passive: true });
+    }
 
     if (window.ResizeObserver && this.elements.viewport) {
       this.resizeObserver = new ResizeObserver(() => {
@@ -623,6 +595,10 @@ export class EnvelopeScene {
   destroy() {
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', this.resizeHandler);
+        window.visualViewport.removeEventListener('scroll', this.resizeHandler);
+      }
     }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();

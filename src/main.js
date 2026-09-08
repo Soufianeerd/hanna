@@ -23,10 +23,10 @@ function initApp() {
     // Mode calibration géométrique
     document.body.classList.add('calibration-mode');
     document.body.classList.remove('hanna-experience-active');
-    new CalibrationController(app);
+    window.__hannaCalibration = new CalibrationController(app);
   } else {
     // Expérience Hanna publique (avec ou sans panneau DEV de motion)
-    new HannaExperience(app, { isDevMotion });
+    window.__hanna = new HannaExperience(app, { isDevMotion });
   }
 }
 

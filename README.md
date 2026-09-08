@@ -9,25 +9,26 @@ Dépôt GitHub : [https://github.com/Soufianeerd/hanna.git](https://github.com/S
 
 **Hanna** est une invitation de mariage digitale interactive haut de gamme (*Quiet Luxury*) dédiée à la célébration du **Henna Day de Salma**.
 
-L'expérience transporte l'invité à travers une mise en scène physique et fluide :
-1. **Écran initial ivoire (#F7F4EC)** : une atmosphère épurée et solennelle.
+L'expérience transporte l'invité à travers une mise en scène physique continue :
+1. **Écran initial ivoire (#F7F4EC)** : une atmosphère épurée et chaleureuse.
 2. **Arrivée de l'enveloppe** : surgissement fluide depuis le bas avec stabilisation en apesanteur.
 3. **Flottement permanent (idle)** : mouvement doux et organique invitant à l'interaction.
-4. **Accompagnement musical** : introduction musicale traditionnelle (« Lilet Elhena ») rythmée pendant l'expérience d'ouverture.
+4. **Accompagnement musical** : introduction musicale rythmée pendant l'expérience d'ouverture.
 5. **Retournement 3D & Sceau** : rotation fluide vers le dos mettant en valeur le sceau de cire doré.
 6. **Ouverture & Extraction** : rupture du sceau, rabat ouvert, et extraction continue de la carte d'invitation sans à-coups.
-7. **Invitation Plein Écran** : sur mobile, la carte devient l'écran lui-même (largeur 100vw, ratio préservé sans découpe).
-8. **RSVP Interactif & Cartographie** : confirmation de présence avec sélection d'accompagnants (1 à 4 personnes) et redirection directe vers Google Maps pour la salle.
-9. **Enregistrement Google Sheets** : liaison en temps réel via Google Apps Script vers la feuille privée de Salma (`Hamidi.salma54@gmail.com`).
+7. **Présentation Continue (Card Presenting)** : la carte se détache, continue naturellement d'avancer vers l'utilisateur, grandit progressivement et se cale avec douceur dans l'écran visible.
+8. **Invitation Plein Écran Sécurisée** : la carte s'adapte au Visual Viewport réel d'iOS Safari pour garantir que l'intégralité du visuel et du RSVP restent visibles sans être masqués par les barres de navigation.
+9. **RSVP Épuré & Cartographie** : confirmation de présence (`Présent(e)` / `Absent(e)`) et redirection directe vers Google Maps pour la salle.
+10. **Enregistrement Google Sheets** : liaison en temps réel via Google Apps Script vers la feuille privée de Salma (`Hamidi.salma54@gmail.com`).
 
 ---
 
 ## 2. Stack Technique
 
-- **Langage / Core** : HTML5 sémantique, CSS3 Vanilla moderne (variables CSS, transform 3D, flex/grid).
-- **Typographie** : *Great Vibes* (calligraphie du S de Salma), *Alex Brush* (script complémentaire), *Cinzel* & *Cinzel Decorative* (titres et majuscules d'inspiration romaine), *Cormorant Garamond* (corps de texte élégant).
+- **Langage / Core** : HTML5 sémantique, CSS3 Vanilla moderne (variables CSS, transform 3D, flex/grid, container queries `cqi`).
+- **Typographie** : *Great Vibes* (calligraphie élégante du S de Salma), *Alex Brush* (script complémentaire), *Cinzel* & *Cinzel Decorative* (titres d'inspiration romaine), *Cormorant Garamond* (corps de texte et RSVP).
 - **Moteur d'Animation** : GSAP 3 (GreenSock Animation Platform) en Vanilla JS pur.
-- **Audio** : HTMLAudioElement avec gestion fine de l'autoplay mobile, fondu progressif (*fade out*) et bouton mute tactile discret.
+- **Audio** : HTMLAudioElement avec gestion fine de l'autoplay mobile, déclenchement synchrone au `pointerdown`, fondu progressif (*fade out*) et bouton mute tactile discret.
 - **Backend Serverless** : Google Apps Script (`Code.gs`) connecté à Google Sheets (`INVITES`, `DASHBOARD`, `LOGS`).
 - **Hébergement & Déploiement** : Netlify (build Vite Vanilla JS).
 - **Philosophie** : Zéro framework lourd (pas de React, Vue, Tailwind ou Three.js). Performances 60 FPS garanties sur smartphone.
@@ -72,7 +73,7 @@ Tous les fichiers statiques résident dans le dossier `assets/hanna/` :
   - `carteInvitation.png` (941 × 1672) : Modèle de référence original intact (pompons, table traditionnelle en laiton, calligraphie arabe).
   - `card-paper-patch.png` : Bande de papier ivoire texturée échantillonnée directement sur la carte pour les patchs chirurgicaux.
 - `audio/` :
-  - `lilet-elhena-intro.mp3` : Fichier audio d'introduction (à déposer manuellement dans ce dossier).
+  - `README_AUDIO.md` : Guide pour déposer le fichier audio d'intro.
 
 ---
 
@@ -83,20 +84,21 @@ Le cycle complet est géré par une machine à états stricte (`experienceState.
 - **`FLIPPING`** : Neutralisation de l'idle et retournement 3D à 180° autour de l'axe central.
 - **`BACK_SEAL`** : Révélation du dos et du sceau de cire.
 - **`OPENING`** : Le sceau disparaît doucement, le rabat supérieur s'ouvre, révélant la tête de la carte d'invitation.
-- **`EXTRACTING`** : La carte monte progressivement hors de la poche, pivote avec fluidité sans collision.
-- **`CARD_READY`** : L'enveloppe s'efface, la musique s'estompe en fondu doux (~0.8s), et la carte s'impose au premier plan.
+- **`CARD_EXTRACTING`** : La carte monte progressivement hors de la poche et se redresse.
+- **`CARD_PRESENTING`** : Transition continue vers l'avant : la carte grandit progressivement et se rapproche doucement de l'utilisateur pendant que l'enveloppe s'efface (aucun saut DOM ni téléportation).
+- **`CARD_READY`** : La carte est calée à sa taille finale optimale, la musique s'estompe en fondu doux (~0.8s), et le RSVP apparaît.
 - **`SENDING`** : Après validation du RSVP, la carte s'envole vers le haut avec une perspective aérienne.
 - **`CONFIRMED`** : Message final de remerciement aux invités.
 
 ---
 
-## 6. Responsive Mobile & Immersion Plein Écran
+## 6. Responsive Mobile & Visual Viewport
 
-Sur smartphone (écran ≤ 600px, testé sur iPhone 390×844, 393×852, 430×932) :
-- **Largeur Pleine** : La carte occupe **100vw** de l'écran pour une présence imposante.
-- **Proportions Respectées** : Le ratio natif de `941 / 1672` est strictement conservé. Aucun élément décoratif (pompons, table, broderies) n'est rogné ou masqué.
-- **Fond Continu** : Le fond du viewport adopte exactement l'ivoire de la carte (`#F7F4EC`), offrant l'illusion d'une invitation papier plein écran continue.
-- **Zéro Aspect Modal** : Pas de bordure arrondie artificielle, pas d'ombre excessive sur mobile.
+Sur smartphone (testé sur iPhone 390×844, 393×852, 430×932) :
+- **Mesure Visual Viewport** : L'affichage calcule en direct la hauteur réellement visible de Safari (déduction faite des barres d'adresse, barres d'onglets et safe areas).
+- **Zéro Rognage** : La carte entière et le bloc RSVP sont **100% visibles sans nécessiter de scroll**.
+- **Proportions Strictes** : Le ratio natif de `941 / 1672` est strictement respecté.
+- **Fond Continu** : Le fond adopte l'ivoire exact de la carte (`#F7F4EC`), offrant l'impression d'une invitation plein écran continue.
 
 Sur ordinateur de bureau (*desktop*) :
 - La carte se centre élégamment avec une hauteur maximale de `94dvh` et une largeur proportionnelle.
@@ -105,30 +107,32 @@ Sur ordinateur de bureau (*desktop*) :
 
 ## 7. Gestion Audio
 
-- **Fichier attendu** : `assets/hanna/audio/lilet-elhena-intro.mp3`.
+> [!IMPORTANT]
+> **Fichier audio non inclus dans Git** : Le code audio est prêt et testé, mais le fichier audio n'est pas fourni dans le dépôt GitHub pour des raisons de droits.  
+> Pour activer la musique, déposez un fichier audio autorisé nommé **`lilet-elhena-intro.mp3`** dans le dossier **`assets/hanna/audio/`**.  
+> Si le fichier est absent, le système masque automatiquement le bouton de son sans bloquer l'expérience.
+
 - **Comportement intelligent** :
   - Préchargement automatique (`preload: auto`).
-  - Démarrage dès le premier geste utilisateur (clic ou tap sur l'enveloppe) pour contourner les restrictions strictes d'autoplay sur iOS Safari et Chrome Mobile.
+  - Démarrage instantané au premier `pointerdown` tactile de l'invité sur l'enveloppe (méthode native la plus fiable pour iOS Safari).
+  - La musique continue pendant le flip, l'ouverture, l'extraction et la présentation continue.
   - Fin automatique en fondu doux (`fade out` de 0.8 seconde) dès que l'état `CARD_READY` est atteint.
-  - Volume de confort calibré à **0.28** pour rester discret en arrière-plan.
+  - Bouton mute discret en haut à droite avec une cible tactile de 42×42px.
   - Pas de boucle sonore (`loop: false`).
-  - Sécurité délai max : si l'utilisateur ne clique pas sur l'enveloppe après 20 secondes, la musique s'arrête.
-  - Bouton de sourdine discret (*mute toggle*) en haut à droite avec une cible tactile de 42×42px.
 
 ---
 
-## 8. Système RSVP & Accompagnants
+## 8. Système RSVP Épuré (Sans Accompagnants)
 
-Le formulaire RSVP est intégré de façon invisible dans la zone ivoire disponible de la carte :
+Le RSVP est épuré et adapté au tactile :
 - **Choix du statut** :
-  - `Présent(e)` : Déploie immédiatement la sélection du nombre total de personnes.
-  - `Absent(e)` : Masque la sélection et fixe le nombre de personnes à `0`.
-- **Nombre total de personnes** :
-  - Boutons interactifs `[ 1 ] [ 2 ] [ 3 ] [ 4 ]`.
-  - Le nombre inclut l'invité principal (1 = seul, 2 = invité + 1 accompagnant, etc.).
-  - Le maximum affiché est dynamiquement limité par la propriété `MAX_PERSONNES` de l'invité dans le Google Sheet.
+  - `Présent(e)` : Sélectionne la présence.
+  - `Absent(e)` : Sélectionne l'absence.
+- **Bouton Valider** : Souligné, élégant et lisible.
+- **Typographie responsive** : Tailles adaptées via `cqi` (container query inline size) pour une lisibilité parfaite sur smartphone.
+- **Zone tactile** : Boutons tactiles avec zone active ≥ 42px.
 - **Modification possible** : Un invité rouvrant son lien personnel retrouve sa réponse précédente pré-remplie et peut la modifier.
-- **Mode Démo** : Si aucun paramètre `?code=` n'est présent dans l'URL en production, la carte reste consultable mais le bouton RSVP indique discrètement que la réponse n'est pas enregistrable sans lien personnel.
+- **Mode Démo** : Si aucun paramètre `?code=` n'est présent dans l'URL en production, la carte reste consultable mais le bouton RSVP indique discrètement que la réponse nécessite un code invité.
 
 ---
 
@@ -136,15 +140,15 @@ Le formulaire RSVP est intégré de façon invisible dans la zone ivoire disponi
 
 Le fichier source complet est situé dans `google-apps-script/Code.gs` :
 - **Actions supportées** :
-  - `getGuest` : Récupère le prénom, `maxPartySize`, `rsvp` actuel et `partySize` pour le code invité donné.
-  - `saveRsvp` : Valide et enregistre la réponse de l'invité de manière atomique.
+  - `getGuest` : Récupère le prénom et le statut `rsvp` actuel pour le code invité donné.
+  - `saveRsvp` : Valide et enregistre la réponse de l'invité (`PRESENT` ou `ABSENT`) de manière atomique.
 - **Sécurité & Concurrence** :
   - Utilisation systématique de `LockService.getScriptLock()` avec timeout de 10 secondes pour éviter toute corruption concurrente de la feuille de calcul.
-  - Aucune information personnelle (nom complet, coordonnées des autres invités) n'est jamais exposée par l'API.
+  - Migration automatique : si une feuille contient d'anciennes colonnes, la fonction `migrateLegacyInviteSheet_()` réorganise les données automatiquement sans perte.
 
 ---
 
-## 10. Structure du Google Sheet
+## 10. Structure du Google Sheet (8 Colonnes)
 
 Le classeur Google Sheets généré automatiquement par `setupHanna()` comporte 3 feuilles :
 
@@ -154,14 +158,11 @@ Le classeur Google Sheets généré automatiquement par `setupHanna()` comporte 
 | A | **CODE** | Identifiant unique non devinable (ex: `HN-A7K3Q9M2P8ZX`) |
 | B | **PRENOM** | Prénom de l'invité |
 | C | **NOM** | Nom de famille |
-| D | **MAX_PERSONNES** | Nombre maximal de personnes autorisées (1 à 4) |
-| E | **RSVP** | `PRESENT`, `ABSENT` ou vide |
-| F | **NB_PERSONNES** | Total de personnes venant (1 à 4 si Présent, 0 si Absent) |
-| G | **NB_ACCOMPAGNANTS** | Accompagnants uniquement (`partySize - 1` si Présent, 0 sinon) |
-| H | **DATE_REPONSE** | Date et heure de la première réponse enregistrée |
-| I | **UPDATED_AT** | Date et heure de la dernière mise à jour |
-| J | **ACTIF** | `TRUE` pour autoriser la réponse, `FALSE` pour désactiver |
-| K | **LIEN_INVITATION** | Lien personnalisé direct envoyé à l'invité |
+| D | **RSVP** | `PRESENT`, `ABSENT` ou vide |
+| E | **DATE_REPONSE** | Date et heure de la première réponse enregistrée |
+| F | **UPDATED_AT** | Date et heure de la dernière mise à jour |
+| G | **ACTIF** | `TRUE` pour autoriser la réponse, `FALSE` pour désactiver |
+| H | **LIEN_INVITATION** | Lien personnalisé direct envoyé à l'invité |
 
 ### Feuille `DASHBOARD`
 Calculé automatiquement côté serveur après chaque soumission de réponse :
@@ -170,8 +171,6 @@ Calculé automatiquement côté serveur après chaque soumission de réponse :
 - **EN ATTENTE** : Invitations sans réponse.
 - **PRÉSENTS** : Nombre d'invitations ayant répondu `PRESENT`.
 - **ABSENTS** : Nombre d'invitations ayant répondu `ABSENT`.
-- **TOTAL PERSONNES ATTENDUES** : Somme réelle des personnes attendues (invités + accompagnants).
-- **TOTAL ACCOMPAGNANTS** : Somme des accompagnants seuls.
 
 ### Feuille `LOGS`
 Journalisation horodatée des requêtes `GET_GUEST` et `SAVE_RSVP` pour traçabilité et diagnostic.
@@ -192,11 +191,7 @@ Journalisation horodatée des requêtes `GET_GUEST` et `SAVE_RSVP` pour traçabi
 7. Ouvrir le fichier [`google-apps-script/Code.gs`](google-apps-script/Code.gs) du projet, copier l'intégralité du texte et le coller dans l'éditeur Apps Script.
 8. Cliquer sur l'icône de disquette (**Enregistrer le projet**).
 9. Dans le sélecteur de fonction en haut, choisir **`setupHanna`** et cliquer sur **Exécuter**.
-10. Une fenêtre d'autorisation Google apparaît :
-    - Cliquer sur *Examiner les autorisations*.
-    - Choisir le compte *Hamidi.salma54@gmail.com*.
-    - Cliquer sur *Paramètres avancés* puis sur *Accéder à Hanna RSVP (non sécurisé)*.
-    - Cliquer sur *Autoriser*.
+10. Accepter les autorisations Google (Paramètres avancés > Accéder à Hanna RSVP > Autoriser).
 11. Revenir sur le Google Sheet : les feuilles `INVITES`, `DASHBOARD` et `LOGS` sont maintenant créées et formatées.
 
 ---
@@ -204,69 +199,53 @@ Journalisation horodatée des requêtes `GET_GUEST` et `SAVE_RSVP` pour traçabi
 ## 12. Déploiement du Web App Google Apps Script
 
 1. Dans l'éditeur Apps Script, cliquer sur le bouton bleu **Déployer** (en haut à droite) > **Nouveau déploiement**.
-2. Cliquer sur l'icône d'engrenage à côté de *Sélectionner un type* et choisir **Application Web**.
-3. Remplir la configuration suivante :
-   - **Description** : `Production RSVP Hanna v1`
+2. Choisir le type **Application Web**.
+3. Remplir la configuration :
+   - **Description** : `Production RSVP Hanna v2`
    - **Exécuter en tant que** : **Moi (Hamidi.salma54@gmail.com)**
    - **Qui a accès** : **Tout le monde** (*Anyone*)
 4. Cliquer sur **Déployer**.
-5. Google affiche l'URL de l'application Web.
-6. **Copier l'URL se terminant par `/exec`** (Exemple : `https://script.google.com/macros/s/AKfycbx.../exec`).  
-   *(Attention : ne jamais copier l'URL se terminant par `/dev`).*
+5. **Copier l'URL se terminant par `/exec`** (Exemple : `https://script.google.com/macros/s/AKfycbx.../exec`).
 
 ---
 
 ## 13. Configuration Netlify
 
 1. Se connecter à [Netlify](https://app.netlify.com/).
-2. Accéder au site **`hannasalma`** (ou au dashboard de production).
+2. Accéder au site **`hannasalma`**.
 3. Aller dans **Site configuration** > **Environment variables**.
-4. Cliquer sur **Add a variable** > **Add a single variable** :
+4. Ajouter ou mettre à jour :
    - **Key** : `VITE_RSVP_ENDPOINT`
-   - **Value** : Coller l'URL du Web App Google Apps Script copiée à l'étape précédente (se terminant par `/exec`).
+   - **Value** : Coller l'URL du Web App Google Apps Script (terminant par `/exec`).
 5. Aller dans l'onglet **Deploys** > **Trigger deploy** > **Deploy site**.
-6. Une fois le déploiement terminé, le site de production est connecté en direct au Google Sheet.
 
 ---
 
 ## 14. Génération des Liens Invités et Procédure de Test
 
 ### Création des invités
-1. Dans la feuille Google Sheets `INVITES`, ajouter manuellement les invités sur les colonnes B, C, D et J :
+1. Dans la feuille `INVITES`, remplir simplement les colonnes B, C et G :
    - `PRENOM` : Ex. `Salma`
    - `NOM` : Ex. `Dupont`
-   - `MAX_PERSONNES` : Ex. `4` (ou `2` pour un couple)
    - `ACTIF` : `TRUE`
-2. Dans Apps Script, sélectionner la fonction **`generateMissingInviteCodes`** et cliquer sur **Exécuter**.
-3. De retour sur la feuille, les colonnes `CODE` et `LIEN_INVITATION` ont été automatiquement générées avec des identifiants cryptographiques sécurisés.
-4. Transmettre le lien de la colonne `LIEN_INVITATION` à l'invité (ex: `https://hannasalma.netlify.app/?code=HN-XXXXXXXXXXXX`).
+2. Dans Apps Script, exécuter **`generateMissingInviteCodes`**.
+3. Le script génère automatiquement `CODE` et `LIEN_INVITATION`.
+4. Envoyer le lien personnel à l'invité.
 
-### Protocole de Test
-1. Ouvrir le lien généré dans un navigateur (sur mobile ou desktop).
-2. Vérifier l'apparition de l'enveloppe et le flottement.
-3. Cliquer sur l'enveloppe : l'audio d'intro démarre, l'enveloppe tourne à 180°, le sceau s'ouvre, la carte s'extrait.
-4. À l'affichage de la carte : la musique s'estompe délicatement.
-5. Vérifier que l'heure indique bien **`À PARTIR DE 18H`** et que le **S** de Salma est calligraphié.
-6. Cliquer sur **Présent(e)** > Choisir **3 personnes** > Cliquer sur **Valider**.
-7. Vérifier sur le Google Sheet :
-   - `RSVP` = `PRESENT`
-   - `NB_PERSONNES` = `3`
-   - `NB_ACCOMPAGNANTS` = `2`
-   - `DASHBOARD` : Les compteurs de présences se sont immédiatement actualisés.
-8. Rouvrir le même lien, choisir **Absent(e)** > Valider.
-9. Vérifier sur le Google Sheet :
-   - `RSVP` = `ABSENT`
-   - `NB_PERSONNES` = `0`
-   - `NB_ACCOMPAGNANTS` = `0`
-   - `DASHBOARD` : Compteurs mis à jour instantanément.
+### Test de validation
+1. Ouvrir le lien personnel généré sur smartphone.
+2. Toucher l'enveloppe : ouverture fluide, extraction, et présentation continue de la carte sans sursaut.
+3. Vérifier que la carte et le RSVP tiennent à 100% dans la zone visible.
+4. Cliquer sur **Présent(e)** > **Valider**.
+5. Vérifier dans Google Sheets : `RSVP = PRESENT`, et le `DASHBOARD` s'actualise immédiatement.
 
 ---
 
 ## 15. Dépannage et FAQ
 
-- **Le son ne démarre pas immédiatement sur iPhone ?**  
-  C'est le comportement normal d'iOS Safari pour économiser la batterie et la bande passante. Le gestionnaire audio précharge le flux et démarre le son dès le premier appui de l'invité sur l'enveloppe.
+- **Le bas de la carte ou le RSVP est-il coupé par Safari ?**  
+  Non, le système utilise l'API `window.visualViewport` pour calculer en temps réel la zone utile de Safari en déduisant les barres d'outils et les encoches.
+- **La musique ne démarre pas ?**  
+  Vérifiez qu'un fichier audio nommé `lilet-elhena-intro.mp3` est bien déposé dans `assets/hanna/audio/`. Sur mobile, la lecture se déclenche au premier toucher de l'enveloppe.
 - **Erreur `Cette invitation ne permet pas d'enregistrer une réponse` ?**  
-  L'utilisateur a ouvert le site sans code invité (`?code=...`) ou le code n'est plus marqué comme `ACTIF = TRUE` dans le Google Sheet.
-- **Le RSVP ne s'enregistre pas sur Google Sheets ?**  
-  Vérifier que la variable d'environnement `VITE_RSVP_ENDPOINT` sur Netlify contient bien l'URL `/exec` du Web App, que le déploiement a été redéclenché (*Trigger deploy*), et que le Web App Apps Script est bien configuré avec l'accès *« Tout le monde » (Anyone)*.
+  L'utilisateur a ouvert le site sans code invité (`?code=...`) ou le code n'est pas actif dans Google Sheets.

@@ -73,8 +73,14 @@ export class HannaExperience {
     document.body.classList.add('hanna-experience-active');
     document.body.classList.remove('calibration-mode');
 
-    // 1. Initialisation audio
-    this.audioManager = new InvitationAudioManager();
+    // 1. Initialisation audio avec détection automatique de disponibilité
+    this.audioManager = new InvitationAudioManager({
+      onAvailabilityChange: (available) => {
+        if (this.scene) {
+          this.scene.setAudioAvailable(available);
+        }
+      }
+    });
     this.audioManager.preload();
 
     // 2. Préchargement complet des assets graphiques
@@ -89,6 +95,16 @@ export class HannaExperience {
         this.scene.updateMuteDisplay(isMuted);
       }
     });
+
+    // Synchronisation de la disponibilité audio avec le bouton son
+    this.scene.setAudioAvailable(this.audioManager.available);
+
+    // Écouteur synchrone au premier pointerdown sur l'enveloppe pour iOS
+    if (this.scene.elements.object3D) {
+      this.scene.elements.object3D.addEventListener('pointerdown', () => {
+        this.audioManager.playOnUserGesture();
+      }, { once: true, passive: true });
+    }
 
     // 4. Contrôleurs d'animation
     this.entrance = new EnvelopeEntranceAnimation(this.scene, this.stateManager);
@@ -188,8 +204,8 @@ export class HannaExperience {
     this.hasOpened = true;
     this.scene.setInteractive(false);
 
-    // Démarre la musique sur ce geste utilisateur si l'autoplay avait été restreint
-    this.audioManager.start();
+    // Démarre la musique sur ce geste utilisateur si l'audio est disponible
+    this.audioManager.playOnUserGesture();
 
     // 1. Stopper le floating et neutraliser en douceur y et rotation
     this.idle.stop();
@@ -198,7 +214,7 @@ export class HannaExperience {
     // 2. Dérouler le flip 180°, le sceau et la bascule vers l'open
     this.flip.playFlipSequence({
       onOpenReady: () => {
-        // 3. Extraction progressive de la carte (3.0s, sans zigzag)
+        // 3. Extraction progressive puis présentation continue
         this.extraction.play({
           onCardReady: () => {
             // Carte prête : fade out automatique de la musique d'ouverture
@@ -209,7 +225,7 @@ export class HannaExperience {
     });
   }
 
-  async handleRsvpSubmit({ status, partySize }) {
+  async handleRsvpSubmit({ status }) {
     if (!this.stateManager.is(EXPERIENCE_STATE.CARD_READY)) return;
 
     this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUBMITTING);
@@ -218,7 +234,6 @@ export class HannaExperience {
     const payload = {
       code: this.guestCode,
       status: status,
-      partySize: status === 'PRESENT' ? partySize : 0,
       submittedAt: new Date().toISOString()
     };
 
@@ -226,7 +241,7 @@ export class HannaExperience {
 
     if (res.ok) {
       this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);
-      this.scene.displayConfirmation(status, partySize);
+      this.scene.displayConfirmation(status);
 
       // Animation d'envoi de la carte vers le haut
       this.send.play();

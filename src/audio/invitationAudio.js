@@ -1,21 +1,21 @@
 /**
  * Gestionnaire audio pour l'expérience d'ouverture d'invitation Hanna
  * Morceau : "Lilet Elhena" (intro d'ouverture uniquement)
- * Arrêt en fondu à l'apparition de la carte (CARD_READY)
+ * Arrêt en fondu à l'apparition finale de la carte (CARD_READY)
  */
 
 import gsap from 'gsap';
 import { AUDIO } from '../config/audio.js';
 
 export class InvitationAudioManager {
-  constructor() {
+  constructor({ onAvailabilityChange } = {}) {
     this.audio = null;
     this.isPlaying = false;
     this.isMuted = false;
     this.hasFadedOut = false;
-    this.maxWaitTimer = null;
+    this.available = false;
     this.fadeTween = null;
-    this.userGestureBound = false;
+    this.onAvailabilityChange = onAvailabilityChange;
     this.onMuteChange = null;
 
     this.initAudio();
@@ -29,80 +29,80 @@ export class InvitationAudioManager {
       this.audio.loop = false;
       this.audio.volume = 0;
 
-      // Gestion propre en cas d'absence du fichier ou d'erreur de décodage
-      this.audio.addEventListener('error', (e) => {
-        console.warn('Audio non disponible ou en attente d’ajout manuel:', AUDIO.invitationMusic.src);
+      this.audio.addEventListener('error', () => {
+        this.available = false;
+        if (this.onAvailabilityChange) {
+          this.onAvailabilityChange(false);
+        }
+      });
+
+      this.audio.addEventListener('canplaythrough', () => {
+        this.available = true;
+        if (this.onAvailabilityChange) {
+          this.onAvailabilityChange(true);
+        }
       });
     } catch (err) {
-      console.warn('Initialisation audio ignorée:', err);
+      console.warn('[Audio] Initialisation audio ignorée:', err);
     }
+  }
+
+  async checkAvailability() {
+    if (typeof window === 'undefined') return false;
+    try {
+      const res = await fetch(AUDIO.invitationMusic.src, { method: 'HEAD' });
+      this.available = res.ok;
+    } catch (_) {
+      this.available = false;
+    }
+    if (this.onAvailabilityChange) {
+      this.onAvailabilityChange(this.available);
+    }
+    return this.available;
   }
 
   preload() {
-    if (!this.audio) return;
-    try {
-      this.audio.load();
-    } catch (_) {}
+    this.checkAvailability().then((ok) => {
+      if (ok && this.audio) {
+        try {
+          this.audio.load();
+        } catch (_) {}
+      }
+    });
   }
 
   /**
-   * Tente de démarrer la musique.
-   * Gère silencieusement le refus d'autoplay des navigateurs mobiles (Safari/Chrome).
+   * Démarre la musique immédiatement dans le call-stack du geste utilisateur (ex: pointerdown enveloppe)
+   * Méthode la plus fiable sur iOS Safari et Chrome Mobile
    */
   start() {
-    if (!this.audio || this.isPlaying || this.hasFadedOut) return;
-
-    const targetVolume = this.isMuted ? 0 : AUDIO.invitationMusic.volume;
-
-    const playPromise = this.audio.play();
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          this.isPlaying = true;
-          // Fade in initial
-          if (this.fadeTween) this.fadeTween.kill();
-          this.fadeTween = gsap.to(this.audio, {
-            volume: targetVolume,
-            duration: AUDIO.invitationMusic.fadeIn,
-            ease: 'power1.out'
-          });
-
-          // Timeout de sécurité si l'utilisateur attend plus de 20s sans cliquer
-          if (AUDIO.invitationMusic.maxWaitDuration > 0) {
-            this.maxWaitTimer = setTimeout(() => {
-              if (this.isPlaying && !this.hasFadedOut) {
-                this.fadeOutAndStop(1.5);
-              }
-            }, AUDIO.invitationMusic.maxWaitDuration * 1000);
-          }
-        })
-        .catch((err) => {
-          // Autoplay bloqué par le navigateur : attend le premier geste utilisateur
-          this.isPlaying = false;
-          this.bindUserGesture();
-        });
-    }
+    this.playOnUserGesture();
   }
 
-  /**
-   * Attache un écouteur sur le premier geste utilisateur si l'autoplay a été bloqué
-   */
-  bindUserGesture() {
-    if (this.userGestureBound || this.hasFadedOut) return;
-    this.userGestureBound = true;
+  playOnUserGesture() {
+    if (!this.available || !this.audio || this.isPlaying || this.hasFadedOut) return;
 
-    const triggerPlay = () => {
-      if (!this.isPlaying && !this.hasFadedOut) {
-        this.start();
+    try {
+      const targetVolume = this.isMuted ? 0 : AUDIO.invitationMusic.volume;
+      const playPromise = this.audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            this.isPlaying = true;
+            if (this.fadeTween) this.fadeTween.kill();
+            this.fadeTween = gsap.to(this.audio, {
+              volume: targetVolume,
+              duration: AUDIO.invitationMusic.fadeIn,
+              ease: 'power1.out'
+            });
+          })
+          .catch((err) => {
+            console.warn('[Audio] Lecture rejetée:', err);
+          });
       }
-      window.removeEventListener('pointerdown', triggerPlay);
-      window.removeEventListener('touchstart', triggerPlay);
-      window.removeEventListener('click', triggerPlay);
-    };
-
-    window.addEventListener('pointerdown', triggerPlay, { once: true, passive: true });
-    window.addEventListener('touchstart', triggerPlay, { once: true, passive: true });
-    window.addEventListener('click', triggerPlay, { once: true, passive: true });
+    } catch (err) {
+      console.warn('[Audio] Erreur déclenchement sonore:', err);
+    }
   }
 
   /**
@@ -112,11 +112,6 @@ export class InvitationAudioManager {
   fadeOutAndStop(duration = AUDIO.invitationMusic.fadeOut) {
     if (!this.audio || !this.isPlaying || this.hasFadedOut) return;
     this.hasFadedOut = true;
-
-    if (this.maxWaitTimer) {
-      clearTimeout(this.maxWaitTimer);
-      this.maxWaitTimer = null;
-    }
 
     if (this.fadeTween) this.fadeTween.kill();
 
@@ -155,10 +150,6 @@ export class InvitationAudioManager {
   }
 
   destroy() {
-    if (this.maxWaitTimer) {
-      clearTimeout(this.maxWaitTimer);
-      this.maxWaitTimer = null;
-    }
     if (this.fadeTween) {
       this.fadeTween.kill();
       this.fadeTween = null;

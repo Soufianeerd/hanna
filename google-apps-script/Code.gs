@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * HANNA — GOOGLE APPS SCRIPT BACKEND RSVP & DASHBOARD
+ * HANNA — GOOGLE APPS SCRIPT BACKEND RSVP & DASHBOARD (VERSION ÉPURÉE)
  * Compte officiel : Hamidi.salma54@gmail.com
  * Site Netlify : https://hannasalma.netlify.app/
  * ============================================================================
@@ -10,13 +10,24 @@ const CONFIG = {
   SHEET_INVITES: 'INVITES',
   SHEET_DASHBOARD: 'DASHBOARD',
   SHEET_LOGS: 'LOGS',
-  SITE_BASE_URL: 'https://hannasalma.netlify.app/',
-  DEFAULT_MAX_PARTY: 4
+  SITE_BASE_URL: 'https://hannasalma.netlify.app/'
 };
+
+// Schéma officiel épuré sans accompagnants (8 colonnes)
+const INVITES_HEADERS = [
+  'CODE',            // A (1)
+  'PRENOM',          // B (2)
+  'NOM',             // C (3)
+  'RSVP',            // D (4) - vide, PRESENT ou ABSENT
+  'DATE_REPONSE',    // E (5)
+  'UPDATED_AT',      // F (6)
+  'ACTIF',           // G (7) - TRUE ou FALSE
+  'LIEN_INVITATION'  // H (8)
+];
 
 /**
  * Initialisation idempotente du Google Spreadsheet
- * Crée les feuilles, les en-têtes et le tableau de bord sans effacer les données existantes.
+ * Crée ou met à jour les feuilles INVITES, DASHBOARD et LOGS sans perte de données.
  */
 function setupHanna() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -26,32 +37,15 @@ function setupHanna() {
   let sheetInvites = ss.getSheetByName(CONFIG.SHEET_INVITES);
   if (!sheetInvites) {
     sheetInvites = ss.insertSheet(CONFIG.SHEET_INVITES, 0);
-  }
-
-  const invitesHeaders = [
-    'CODE',              // A (1)
-    'PRENOM',            // B (2)
-    'NOM',               // C (3)
-    'MAX_PERSONNES',     // D (4)
-    'RSVP',              // E (5)
-    'NB_PERSONNES',      // F (6)
-    'NB_ACCOMPAGNANTS',  // G (7)
-    'DATE_REPONSE',      // H (8)
-    'UPDATED_AT',        // I (9)
-    'ACTIF',             // J (10)
-    'LIEN_INVITATION'    // K (11)
-  ];
-
-  if (sheetInvites.getLastRow() === 0) {
-    sheetInvites.appendRow(invitesHeaders);
+    sheetInvites.appendRow(INVITES_HEADERS);
   } else {
-    // S'assure que la ligne d'en-tête est conforme
-    sheetInvites.getRange(1, 1, 1, invitesHeaders.length).setValues([invitesHeaders]);
+    // Migration sécurisée si l'ancienne structure (avec MAX_PERSONNES) est détectée
+    migrateLegacyInviteSheet_(sheetInvites);
   }
 
-  // Formatage INVITES
+  // Formatage esthétique de la feuille INVITES
   sheetInvites.setFrozenRows(1);
-  const headerRange = sheetInvites.getRange(1, 1, 1, invitesHeaders.length);
+  const headerRange = sheetInvites.getRange(1, 1, 1, INVITES_HEADERS.length);
   headerRange.setBackground('#155039')
              .setFontColor('#F7F4EC')
              .setFontWeight('bold')
@@ -59,24 +53,20 @@ function setupHanna() {
              .setFontSize(10)
              .setHorizontalAlignment('center');
 
-  sheetInvites.setColumnWidth(1, 170); // CODE
-  sheetInvites.setColumnWidth(2, 130); // PRENOM
-  sheetInvites.setColumnWidth(3, 130); // NOM
-  sheetInvites.setColumnWidth(4, 130); // MAX_PERSONNES
-  sheetInvites.setColumnWidth(5, 110); // RSVP
-  sheetInvites.setColumnWidth(6, 120); // NB_PERSONNES
-  sheetInvites.setColumnWidth(7, 150); // NB_ACCOMPAGNANTS
-  sheetInvites.setColumnWidth(8, 170); // DATE_REPONSE
-  sheetInvites.setColumnWidth(9, 170); // UPDATED_AT
-  sheetInvites.setColumnWidth(10, 90); // ACTIF
-  sheetInvites.setColumnWidth(11, 340); // LIEN_INVITATION
+  sheetInvites.setColumnWidth(1, 180); // CODE
+  sheetInvites.setColumnWidth(2, 140); // PRENOM
+  sheetInvites.setColumnWidth(3, 140); // NOM
+  sheetInvites.setColumnWidth(4, 120); // RSVP
+  sheetInvites.setColumnWidth(5, 175); // DATE_REPONSE
+  sheetInvites.setColumnWidth(6, 175); // UPDATED_AT
+  sheetInvites.setColumnWidth(7, 95);  // ACTIF
+  sheetInvites.setColumnWidth(8, 360); // LIEN_INVITATION
 
   // 2. Feuille DASHBOARD
   let sheetDashboard = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
   if (!sheetDashboard) {
     sheetDashboard = ss.insertSheet(CONFIG.SHEET_DASHBOARD, 1);
   }
-
   formatDashboardLayout_(sheetDashboard);
 
   // 3. Feuille LOGS
@@ -90,222 +80,132 @@ function setupHanna() {
     sheetLogs.appendRow(logsHeaders);
   }
   sheetLogs.setFrozenRows(1);
-  const logHeaderRange = sheetLogs.getRange(1, 1, 1, logsHeaders.length);
-  logHeaderRange.setBackground('#1F2937')
-                .setFontColor('#F9FAFB')
-                .setFontWeight('bold')
-                .setHorizontalAlignment('center');
+  sheetLogs.getRange(1, 1, 1, logsHeaders.length)
+           .setBackground('#1F2937')
+           .setFontColor('#F9FAFB')
+           .setFontWeight('bold')
+           .setHorizontalAlignment('center');
 
   sheetLogs.setColumnWidth(1, 180);
   sheetLogs.setColumnWidth(2, 130);
   sheetLogs.setColumnWidth(3, 170);
-  sheetLogs.setColumnWidth(4, 100);
+  sheetLogs.setColumnWidth(4, 110);
   sheetLogs.setColumnWidth(5, 300);
 
-  // Mise à jour immédiate du dashboard
+  // Calcul initial du tableau de bord
   updateDashboard_(ss);
-  logAction_('SETUP', 'SYSTEM', 'OK', 'setupHanna exécuté avec succès');
+  SpreadsheetApp.flush();
 }
 
 /**
- * Met en page le tableau de bord avec une mise en forme sobre et élégante
+ * Migration transparente sans suppression de données :
+ * Si la feuille contient les anciennes colonnes MAX_PERSONNES / NB_ACCOMPAGNANTS,
+ * réorganise les données vers le nouveau format à 8 colonnes en préservant tout l'existant.
  */
-function formatDashboardLayout_(sheet) {
-  sheet.clear();
-  sheet.setColumnWidth(1, 40);
-  sheet.setColumnWidth(2, 280);
-  sheet.setColumnWidth(3, 140);
-  sheet.setColumnWidth(4, 40);
-
-  // Titre
-  sheet.getRange('B2:C2').merge()
-       .setValue("TABLEAU DE BORD — SALMA'S HENNA DAY")
-       .setBackground('#155039')
-       .setFontColor('#F7F4EC')
-       .setFontFamily('Georgia')
-       .setFontSize(13)
-       .setFontWeight('bold')
-       .setHorizontalAlignment('center')
-       .setVerticalAlignment('middle');
-  sheet.setRowHeight(2, 38);
-
-  const labels = [
-    ['TOTAL INVITATIONS ACTIVES', 0],
-    ['RÉPONSES REÇUES', 0],
-    ['EN ATTENTE', 0],
-    ['PRÉSENTS (Invitations)', 0],
-    ['ABSENTS (Invitations)', 0],
-    ['TOTAL PERSONNES ATTENDUES', 0],
-    ['TOTAL ACCOMPAGNANTS', 0]
-  ];
-
-  for (let i = 0; i < labels.length; i++) {
-    const row = 4 + i;
-    sheet.getRange(row, 2).setValue(labels[i][0])
-         .setFontFamily('Georgia')
-         .setFontSize(10)
-         .setFontWeight('bold')
-         .setFontColor('#155039')
-         .setBackground(i % 2 === 0 ? '#F7F4EC' : '#FFFFFF')
-         .setVerticalAlignment('middle');
-
-    sheet.getRange(row, 3).setValue(labels[i][1])
-         .setFontFamily('Georgia')
-         .setFontSize(12)
-         .setFontWeight('bold')
-         .setFontColor('#155039')
-         .setBackground(i % 2 === 0 ? '#F7F4EC' : '#FFFFFF')
-         .setHorizontalAlignment('center')
-         .setVerticalAlignment('middle');
-
-    sheet.setRowHeight(row, 30);
-  }
-
-  // Dernière mise à jour
-  sheet.getRange('B12:C12').merge()
-       .setValue('Dernière mise à jour : —')
-       .setFontFamily('Arial')
-       .setFontSize(9)
-       .setFontStyle('italic')
-       .setFontColor('#6B7280')
-       .setHorizontalAlignment('center');
-}
-
-/**
- * Recalcule et actualise les compteurs du DASHBOARD directement en code
- * (indépendant de toute formule Google Sheets localisée FR/EN)
- */
-function updateDashboard_(ss) {
-  if (!ss) ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetInvites = ss.getSheetByName(CONFIG.SHEET_INVITES);
-  const sheetDashboard = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
-  if (!sheetInvites || !sheetDashboard) return;
-
-  const data = sheetInvites.getDataRange().getValues();
-  if (data.length <= 1) {
-    // Pas de données invités
+function migrateLegacyInviteSheet_(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow === 0 || lastCol === 0) {
+    sheet.appendRow(INVITES_HEADERS);
     return;
   }
 
-  let totalActive = 0;
-  let responsesReceived = 0;
-  let presentsCount = 0;
-  let absentsCount = 0;
-  let totalPersonsExpected = 0;
-  let totalGuestsExpected = 0;
+  const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const maxPersIndex = firstRow.indexOf('MAX_PERSONNES');
+  const oldNbAccompIndex = firstRow.indexOf('NB_ACCOMPAGNANTS');
 
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const prenom = String(row[1] || '').trim();
-    if (!prenom) continue; // Ligne vide
+  // Si l'ancienne structure est détectée
+  if (maxPersIndex !== -1 || oldNbAccompIndex !== -1) {
+    const codeIdx = firstRow.indexOf('CODE');
+    const prenomIdx = firstRow.indexOf('PRENOM');
+    const nomIdx = firstRow.indexOf('NOM');
+    const rsvpIdx = firstRow.indexOf('RSVP');
+    const dateRepIdx = firstRow.indexOf('DATE_REPONSE');
+    const updatedIdx = firstRow.indexOf('UPDATED_AT');
+    const actifIdx = firstRow.indexOf('ACTIF');
+    const lienIdx = firstRow.indexOf('LIEN_INVITATION');
 
-    const actifVal = row[9];
-    const isActif = actifVal === true || String(actifVal).toUpperCase() === 'TRUE';
-    if (!isActif) continue;
+    const allData = sheet.getRange(2, 1, Math.max(1, lastRow - 1), lastCol).getValues();
+    const migratedRows = [];
 
-    totalActive++;
+    for (let i = 0; i < allData.length; i++) {
+      const row = allData[i];
+      if (!row[codeIdx] && !row[prenomIdx]) continue;
 
-    const rsvpStatus = String(row[4] || '').toUpperCase().trim();
-    if (rsvpStatus === 'PRESENT') {
-      responsesReceived++;
-      presentsCount++;
-      const nbPers = parseInt(row[5], 10) || 1;
-      const nbAcc = parseInt(row[6], 10) || Math.max(0, nbPers - 1);
-      totalPersonsExpected += nbPers;
-      totalGuestsExpected += nbAcc;
-    } else if (rsvpStatus === 'ABSENT') {
-      responsesReceived++;
-      absentsCount++;
+      migratedRows.push([
+        codeIdx !== -1 ? row[codeIdx] : '',
+        prenomIdx !== -1 ? row[prenomIdx] : '',
+        nomIdx !== -1 ? row[nomIdx] : '',
+        rsvpIdx !== -1 ? row[rsvpIdx] : '',
+        dateRepIdx !== -1 ? row[dateRepIdx] : '',
+        updatedIdx !== -1 ? row[updatedIdx] : '',
+        actifIdx !== -1 ? row[actifIdx] : true,
+        lienIdx !== -1 ? row[lienIdx] : ''
+      ]);
     }
+
+    // Réécriture propre du tableau
+    sheet.clear();
+    sheet.appendRow(INVITES_HEADERS);
+    if (migratedRows.length > 0) {
+      sheet.getRange(2, 1, migratedRows.length, INVITES_HEADERS.length).setValues(migratedRows);
+    }
+  } else {
+    // S'assure que l'en-tête correspond exactement
+    sheet.getRange(1, 1, 1, INVITES_HEADERS.length).setValues([INVITES_HEADERS]);
   }
-
-  const pending = Math.max(0, totalActive - responsesReceived);
-
-  sheetDashboard.getRange(4, 3).setValue(totalActive);
-  sheetDashboard.getRange(5, 3).setValue(responsesReceived);
-  sheetDashboard.getRange(6, 3).setValue(pending);
-  sheetDashboard.getRange(7, 3).setValue(presentsCount);
-  sheetDashboard.getRange(8, 3).setValue(absentsCount);
-  sheetDashboard.getRange(9, 3).setValue(totalPersonsExpected);
-  sheetDashboard.getRange(10, 3).setValue(totalGuestsExpected);
-
-  const nowStr = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm:ss');
-  sheetDashboard.getRange('B12:C12').setValue('Dernière mise à jour : ' + nowStr);
 }
 
 /**
- * Génère un code unique sécurisé non devinable à 12 caractères
- * Exemple : HN-A7K3Q9M2P8ZX
- */
-function generateSecureCode_() {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // Exclut 0, 1, I, O pour lisibilité
-  let result = 'HN-';
-  for (let i = 0; i < 12; i++) {
-    const idx = Math.floor(Math.random() * chars.length);
-    result += chars.charAt(idx);
-  }
-  return result;
-}
-
-/**
- * Parcourt la feuille INVITES et génère le CODE et le LIEN_INVITATION
- * pour toutes les lignes où le PRENOM est présent mais le CODE est vide.
+ * Génère des codes sécurisés non devinables (HN-XXXXXXXXXXXX) pour toutes les lignes
+ * où le prénom est renseigné mais le code est vide.
  */
 function generateMissingInviteCodes() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEET_INVITES);
-  if (!sheet) {
-    throw new Error("Feuille 'INVITES' introuvable. Exécutez setupHanna d'abord.");
-  }
+  if (!sheet) throw new Error('Feuille INVITES introuvable.');
 
-  const data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
 
-  const existingCodes = new Set();
-  for (let i = 1; i < data.length; i++) {
-    const c = String(data[i][0] || '').trim();
-    if (c) existingCodes.add(c);
-  }
-
+  const dataRange = sheet.getRange(2, 1, lastRow - 1, INVITES_HEADERS.length);
+  const rows = dataRange.getValues();
   let generatedCount = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const rowNum = i + 1;
-    const currentCode = String(data[i][0] || '').trim();
-    const prenom = String(data[i][1] || '').trim();
+  for (let i = 0; i < rows.length; i++) {
+    const code = String(rows[i][0] || '').trim();
+    const prenom = String(rows[i][1] || '').trim();
 
-    if (prenom && !currentCode) {
-      let newCode = '';
-      do {
-        newCode = generateSecureCode_();
-      } while (existingCodes.has(newCode));
-
-      existingCodes.add(newCode);
-
-      // Valeurs par défaut
-      const maxPers = data[i][3] || CONFIG.DEFAULT_MAX_PARTY;
-      const actif = data[i][9] !== false && String(data[i][9]).toUpperCase() !== 'FALSE';
-      const link = CONFIG.SITE_BASE_URL + '?code=' + newCode;
-
-      sheet.getRange(rowNum, 1).setValue(newCode); // CODE
-      if (!data[i][3]) sheet.getRange(rowNum, 4).setValue(maxPers); // MAX_PERSONNES
-      if (data[i][9] === '' || data[i][9] === undefined) sheet.getRange(rowNum, 10).setValue(true); // ACTIF
-      sheet.getRange(rowNum, 11).setValue(link); // LIEN_INVITATION
-
+    if (prenom && !code) {
+      const newCode = generateSecureCode_();
+      rows[i][0] = newCode;                                     // A : CODE
+      rows[i][6] = rows[i][6] === '' ? true : rows[i][6];        // G : ACTIF
+      rows[i][7] = CONFIG.SITE_BASE_URL + '?code=' + newCode;    // H : LIEN_INVITATION
       generatedCount++;
     }
   }
 
-  logAction_('GENERATE_CODES', 'BATCH', 'OK', generatedCount + ' codes générés');
-  SpreadsheetApp.getActiveSpreadsheet().toast(
-    generatedCount + ' invitation(s) générée(s) avec succès.',
-    'Génération terminée',
-    5
-  );
+  if (generatedCount > 0) {
+    dataRange.setValues(rows);
+    SpreadsheetApp.flush();
+  }
+
+  logAction_('GENERATE_CODES', '', 'SUCCESS', `${generatedCount} code(s) invité(s) généré(s)`);
+}
+
+function generateSecureCode_() {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let entropy = '';
+  for (let i = 0; i < 12; i++) {
+    const r = Math.floor(Math.random() * chars.length);
+    entropy += chars.charAt(r);
+  }
+  return 'HN-' + entropy;
 }
 
 /**
- * Routeur POST pour les requêtes web (format application/x-www-form-urlencoded)
+ * Point d'entrée HTTP Web App
+ * Supporte application/x-www-form-urlencoded pour éviter les préflights CORS
  */
 function doPost(e) {
   try {
@@ -333,108 +233,85 @@ function doPost(e) {
 
     let responseData = {};
 
-    if (action === 'getGuest') {
-      responseData = handleGetGuest_(payload);
-    } else if (action === 'saveRsvp') {
-      responseData = handleSaveRsvp_(payload);
-    } else {
-      responseData = { ok: false, error: 'ACTION_INVALIDE' };
+    switch (action) {
+      case 'getGuest':
+        responseData = handleGetGuest_(payload);
+        break;
+      case 'saveRsvp':
+        responseData = handleSaveRsvp_(payload);
+        break;
+      default:
+        responseData = { ok: false, error: 'INVALID_ACTION', message: 'Action inconnue' };
     }
 
     return ContentService.createTextOutput(JSON.stringify(responseData))
-                         .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON);
 
-  } catch (err) {
-    logAction_('ERROR', 'doPost', 'KO', String(err.message || err));
+  } catch (error) {
+    logAction_('ERROR', '', 'CRASH', error.toString());
     return ContentService.createTextOutput(JSON.stringify({
       ok: false,
       error: 'SERVER_ERROR',
-      message: String(err.message || err)
+      message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-/**
- * Routeur GET (Healthcheck)
- */
-function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({
-    ok: true,
-    message: 'Hanna Invitation RSVP API opérationnelle',
-    timestamp: new Date().toISOString()
-  })).setMimeType(ContentService.MimeType.JSON);
-}
-
-/**
- * Récupère les données d'un invité via son CODE
- */
 function handleGetGuest_(payload) {
-  const code = String(payload.code || '').trim();
+  const code = (payload.code || '').trim();
   if (!code) {
-    return { ok: false, error: 'CODE_MANQUANT' };
+    return { ok: false, error: 'CODE_REQUIRED', message: 'Code d’invitation obligatoire' };
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEET_INVITES);
   if (!sheet) return { ok: false, error: 'SHEET_NOT_FOUND' };
 
-  const data = sheet.getDataRange().getValues();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: false, error: 'GUEST_NOT_FOUND' };
 
-  for (let i = 1; i < data.length; i++) {
+  const data = sheet.getRange(2, 1, lastRow - 1, INVITES_HEADERS.length).getValues();
+
+  for (let i = 0; i < data.length; i++) {
     const rowCode = String(data[i][0] || '').trim();
     if (rowCode === code) {
-      const isActif = data[i][9] === true || String(data[i][9]).toUpperCase() === 'TRUE';
-      if (!isActif) {
-        logAction_('GET_GUEST', code, 'DENIED', 'Invitation désactivée');
-        return { ok: false, error: 'INVITATION_DESACTIVEE' };
+      const actif = data[i][6];
+      if (actif !== true && String(actif).toUpperCase() !== 'TRUE') {
+        return { ok: false, error: 'INVITE_INACTIVE', message: 'Cette invitation est désactivée.' };
       }
 
-      const firstName = String(data[i][1] || '').trim();
-      const maxPartySize = Math.min(4, Math.max(1, parseInt(data[i][3], 10) || 4));
-      const existingRsvp = String(data[i][4] || '').toUpperCase().trim();
-      const currentPartySize = parseInt(data[i][5], 10) || (existingRsvp === 'PRESENT' ? 1 : 0);
-
-      logAction_('GET_GUEST', code, 'OK', 'Invité identifié: ' + firstName);
+      logAction_('GET_GUEST', code, 'SUCCESS', `Consultation pour ${data[i][1]}`);
 
       return {
         ok: true,
         guest: {
-          firstName: firstName,
-          maxPartySize: maxPartySize,
-          rsvp: existingRsvp ? existingRsvp : null,
-          partySize: currentPartySize
+          firstName: data[i][1] || 'Invité(e)',
+          rsvp: data[i][3] || null
         }
       };
     }
   }
 
-  logAction_('GET_GUEST', code, 'NOT_FOUND', 'Code inconnu');
-  return { ok: false, error: 'CODE_INTROUVABLE' };
+  logAction_('GET_GUEST', code, 'NOT_FOUND', 'Code invité inexistant');
+  return { ok: false, error: 'GUEST_NOT_FOUND', message: 'Invitation introuvable.' };
 }
 
-/**
- * Enregistre ou met à jour le RSVP d'un invité
- * Utilise LockService pour garantir l'intégrité concurrentielle
- */
 function handleSaveRsvp_(payload) {
-  const code = String(payload.code || '').trim();
-  const status = String(payload.status || '').toUpperCase().trim();
-  let partySize = parseInt(payload.partySize, 10);
-  const submittedAt = payload.submittedAt || new Date().toISOString();
+  const code = (payload.code || '').trim();
+  const status = (payload.status || '').trim().toUpperCase();
 
   if (!code) {
-    return { ok: false, error: 'CODE_MANQUANT' };
+    return { ok: false, error: 'CODE_REQUIRED', message: 'Code d’invitation obligatoire' };
   }
-
   if (status !== 'PRESENT' && status !== 'ABSENT') {
-    return { ok: false, error: 'STATUT_INVALIDE' };
+    return { ok: false, error: 'INVALID_STATUS', message: 'Réponse invalide (PRESENT ou ABSENT requis)' };
   }
 
+  // Verrouillage transactionnel pour empêcher toute écriture concurrente
   const lock = LockService.getScriptLock();
-  const hasLock = lock.tryLock(30000); // 30s timeout
-
+  const hasLock = lock.tryLock(10000);
   if (!hasLock) {
-    return { ok: false, error: 'LOCK_TIMEOUT', message: 'Serveur occupé, veuillez réessayer.' };
+    return { ok: false, error: 'LOCK_TIMEOUT', message: 'Serveur occupé. Merci de réessayer dans un instant.' };
   }
 
   try {
@@ -442,71 +319,47 @@ function handleSaveRsvp_(payload) {
     const sheet = ss.getSheetByName(CONFIG.SHEET_INVITES);
     if (!sheet) return { ok: false, error: 'SHEET_NOT_FOUND' };
 
-    const data = sheet.getDataRange().getValues();
-    let rowIndex = -1;
-    let maxAllowedParty = 4;
-    let existingDateReponse = '';
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: false, error: 'GUEST_NOT_FOUND' };
 
-    for (let i = 1; i < data.length; i++) {
-      const rowCode = String(data[i][0] || '').trim();
-      if (rowCode === code) {
-        const isActif = data[i][9] === true || String(data[i][9]).toUpperCase() === 'TRUE';
-        if (!isActif) {
-          return { ok: false, error: 'INVITATION_DESACTIVEE' };
-        }
-        rowIndex = i + 1; // 1-indexed
-        maxAllowedParty = Math.min(4, Math.max(1, parseInt(data[i][3], 10) || 4));
-        existingDateReponse = data[i][7];
+    const data = sheet.getRange(2, 1, lastRow - 1, INVITES_HEADERS.length).getValues();
+    let rowIndex = -1;
+
+    for (let i = 0; i < data.length; i++) {
+      if (String(data[i][0] || '').trim() === code) {
+        rowIndex = i + 2;
         break;
       }
     }
 
     if (rowIndex === -1) {
-      return { ok: false, error: 'CODE_INTROUVABLE' };
+      return { ok: false, error: 'GUEST_NOT_FOUND', message: 'Code invité introuvable.' };
     }
 
-    // Validation et cohérence des personnes
-    let finalPartySize = 0;
-    let nbAccompagnants = 0;
-
-    if (status === 'ABSENT') {
-      finalPartySize = 0;
-      nbAccompagnants = 0;
-    } else {
-      if (isNaN(partySize) || partySize < 1) {
-        partySize = 1;
-      }
-      finalPartySize = Math.min(partySize, maxAllowedParty);
-      nbAccompagnants = Math.max(0, finalPartySize - 1);
+    const currentRow = data[rowIndex - 2];
+    const actif = currentRow[6];
+    if (actif !== true && String(actif).toUpperCase() !== 'TRUE') {
+      return { ok: false, error: 'INVITE_INACTIVE', message: 'Cette invitation est désactivée.' };
     }
 
-    const nowFormatted = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm:ss');
-    const firstResponseDate = existingDateReponse ? existingDateReponse : nowFormatted;
+    const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    const firstResponseDate = currentRow[4] || nowStr;
 
-    // Mise à jour de la ligne (Colonnes E, F, G, H, I)
-    // E (5): RSVP
-    // F (6): NB_PERSONNES
-    // G (7): NB_ACCOMPAGNANTS
-    // H (8): DATE_REPONSE
-    // I (9): UPDATED_AT
-    sheet.getRange(rowIndex, 5).setValue(status);
-    sheet.getRange(rowIndex, 6).setValue(finalPartySize);
-    sheet.getRange(rowIndex, 7).setValue(nbAccompagnants);
-    sheet.getRange(rowIndex, 8).setValue(firstResponseDate);
-    sheet.getRange(rowIndex, 9).setValue(nowFormatted);
+    // Mise à jour ciblée des colonnes D (RSVP), E (DATE_REPONSE), F (UPDATED_AT)
+    sheet.getRange(rowIndex, 4, 1, 3).setValues([
+      [status, firstResponseDate, nowStr]
+    ]);
 
-    // Mise à jour immédiate du dashboard
+    // Recalcul immédiat du tableau de bord
     updateDashboard_(ss);
+    SpreadsheetApp.flush();
 
-    logAction_('SAVE_RSVP', code, 'OK', status + ' (' + finalPartySize + ' pers.)');
+    logAction_('SAVE_RSVP', code, 'SUCCESS', `RSVP enregistré: ${status}`);
 
     return {
       ok: true,
       saved: {
-        status: status,
-        partySize: finalPartySize,
-        nbAccompagnants: nbAccompagnants,
-        updatedAt: nowFormatted
+        status: status
       }
     };
 
@@ -516,20 +369,133 @@ function handleSaveRsvp_(payload) {
 }
 
 /**
- * Journalise une action dans la feuille LOGS
+ * Recalcule et actualise les statistiques dans la feuille DASHBOARD
  */
+function updateDashboard_(ss) {
+  let sheetDashboard = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+  if (!sheetDashboard) {
+    sheetDashboard = ss.insertSheet(CONFIG.SHEET_DASHBOARD, 1);
+    formatDashboardLayout_(sheetDashboard);
+  }
+
+  const sheetInvites = ss.getSheetByName(CONFIG.SHEET_INVITES);
+  if (!sheetInvites || sheetInvites.getLastRow() < 2) {
+    writeDashboardValues_(sheetDashboard, { actives: 0, reponses: 0, enAttente: 0, presents: 0, absents: 0 });
+    return;
+  }
+
+  const data = sheetInvites.getRange(2, 1, sheetInvites.getLastRow() - 1, INVITES_HEADERS.length).getValues();
+
+  let actives = 0;
+  let reponses = 0;
+  let presents = 0;
+  let absents = 0;
+
+  for (let i = 0; i < data.length; i++) {
+    const actif = data[i][6];
+    const isActif = actif === true || String(actif).toUpperCase() === 'TRUE';
+    if (!isActif) continue;
+
+    actives++;
+    const rsvp = String(data[i][3] || '').trim().toUpperCase();
+
+    if (rsvp === 'PRESENT') {
+      reponses++;
+      presents++;
+    } else if (rsvp === 'ABSENT') {
+      reponses++;
+      absents++;
+    }
+  }
+
+  const enAttente = actives - reponses;
+
+  writeDashboardValues_(sheetDashboard, {
+    actives,
+    reponses,
+    enAttente,
+    presents,
+    absents
+  });
+}
+
+function writeDashboardValues_(sheet, stats) {
+  sheet.getRange('B4').setValue(stats.actives);
+  sheet.getRange('B5').setValue(stats.reponses);
+  sheet.getRange('B6').setValue(stats.enAttente);
+  sheet.getRange('B8').setValue(stats.presents);
+  sheet.getRange('B9').setValue(stats.absents);
+
+  const updateTimeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+  sheet.getRange('B11').setValue(updateTimeStr);
+}
+
+function formatDashboardLayout_(sheet) {
+  sheet.clear();
+  sheet.setColumnWidth(1, 260);
+  sheet.setColumnWidth(2, 160);
+
+  // Titre principal
+  sheet.getRange('A1:B1').merge()
+       .setValue('HANNA — DASHBOARD HENNA DAY')
+       .setBackground('#155039')
+       .setFontColor('#F7F4EC')
+       .setFontWeight('bold')
+       .setFontFamily('Georgia')
+       .setFontSize(13)
+       .setHorizontalAlignment('center');
+
+  // Sous-titre
+  sheet.getRange('A2:B2').merge()
+       .setValue('Indicateurs de suivi en temps réel')
+       .setBackground('#E5F1EA')
+       .setFontColor('#155039')
+       .setFontStyle('italic')
+       .setFontSize(10)
+       .setHorizontalAlignment('center');
+
+  // Libellés
+  const labels = [
+    ['TOTAL INVITATIONS ACTIVES', 0],
+    ['RÉPONSES REÇUES', 0],
+    ['EN ATTENTE', 0],
+    ['', ''],
+    ['PRÉSENTS', 0],
+    ['ABSENTS', 0],
+    ['', ''],
+    ['DERNIÈRE MISE À JOUR', '']
+  ];
+
+  sheet.getRange('A4:B11').setValues(labels);
+
+  sheet.getRange('A4:A11')
+       .setFontFamily('Georgia')
+       .setFontWeight('bold')
+       .setFontSize(10)
+       .setFontColor('#111827');
+
+  sheet.getRange('B4:B11')
+       .setFontFamily('Georgia')
+       .setFontWeight('bold')
+       .setFontSize(12)
+       .setHorizontalAlignment('center');
+
+  sheet.getRange('B8').setFontColor('#155039'); // Présents en vert
+  sheet.getRange('B9').setFontColor('#991B1B'); // Absents en rouge
+  sheet.getRange('B11').setFontSize(9).setFontWeight('normal').setFontColor('#6B7280');
+
+  // Bordures douces
+  sheet.getRange('A4:B6').setBorder(true, true, true, true, false, false, '#D1D5DB', SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange('A8:B9').setBorder(true, true, true, true, false, false, '#D1D5DB', SpreadsheetApp.BorderStyle.SOLID);
+}
+
 function logAction_(action, code, status, detail) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG.SHEET_LOGS);
     if (!sheet) return;
 
-    const timestamp = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm:ss');
-    sheet.appendRow([timestamp, action, code, status, detail]);
-
-    // Limiter la taille des logs à 1000 lignes maximum
-    if (sheet.getLastRow() > 1050) {
-      sheet.deleteRows(2, 100);
-    }
+    const timeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    sheet.appendRow([timeStr, action, code, status, detail]);
   } catch (_) {}
 }

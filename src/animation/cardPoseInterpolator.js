@@ -48,16 +48,16 @@ export function sampleCardPose(progress) {
     const t = smoothstep((p - 0.62) / 0.20);
     rotation = 0.0;
     x = 0.0;
-    y = -140.0 + t * (-160.0 - -140.0);
-    scale = 1.18 + t * (1.26 - 1.18);
+    y = -140.0 + t * (-155.0 - -140.0);
+    scale = 1.18 + t * (1.25 - 1.18);
     isFreed = false;
   } else {
-    // Phase D (0.82 -> 1.0) : PRÉSENTATION FINALE (carte libérée, l'enveloppe recule)
+    // Phase D (0.82 -> 1.0) : DÉBUT D'AVANCEMENT NATUREL VERS L'UTILISATEUR
     const t = smoothstep((p - 0.82) / 0.18);
     rotation = 0.0;
     x = 0.0;
-    y = -160.0 + t * (0.0 - -160.0);
-    scale = 1.26 + t * (1.30 - 1.26);
+    y = -155.0 + t * (-60.0 - -155.0);
+    scale = 1.25 + t * (1.38 - 1.25);
     isFreed = true;
   }
 

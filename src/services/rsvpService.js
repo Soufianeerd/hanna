@@ -1,5 +1,5 @@
 /**
- * Service de gestion et soumission RSVP
+ * Service de gestion et soumission RSVP (Sans accompagnants)
  * Connecté au Web App Google Apps Script via import.meta.env.VITE_RSVP_ENDPOINT
  * Fallback local autorisé uniquement en environnement DEV (import.meta.env.DEV)
  */
@@ -9,7 +9,7 @@ export const RSVP_ENDPOINT = (import.meta.env.VITE_RSVP_ENDPOINT || '').trim();
 /**
  * Récupère les données d'un invité via son code personnalisé
  * @param {string} code Code invité (ex: HN-XXXXXXXXXXXX)
- * @returns {Promise<{ ok: boolean, guest?: { firstName: string, maxPartySize: number, rsvp: string|null, partySize: number }, error?: string }>}
+ * @returns {Promise<{ ok: boolean, guest?: { firstName: string, rsvp: string|null }, error?: string }>}
  */
 export async function getGuest(code) {
   const sanitizedCode = (code || '').trim();
@@ -55,9 +55,7 @@ export async function getGuest(code) {
         ok: true,
         guest: {
           firstName: 'Invité Démo',
-          maxPartySize: 4,
-          rsvp: null,
-          partySize: 1
+          rsvp: null
         }
       };
     } catch (_) {
@@ -65,9 +63,7 @@ export async function getGuest(code) {
         ok: true,
         guest: {
           firstName: 'Invité Démo',
-          maxPartySize: 4,
-          rsvp: null,
-          partySize: 1
+          rsvp: null
         }
       };
     }
@@ -79,14 +75,13 @@ export async function getGuest(code) {
 }
 
 /**
- * Soumet la réponse RSVP
- * @param {{ code: string, status: 'PRESENT'|'ABSENT', partySize: number, submittedAt?: string }} payload
+ * Soumet la réponse RSVP (PRESENT ou ABSENT)
+ * @param {{ code: string, status: 'PRESENT'|'ABSENT', submittedAt?: string }} payload
  * @returns {Promise<{ ok: boolean, saved?: any, error?: string, message?: string }>}
  */
 export async function submitRsvp(payload) {
   const code = (payload.code || '').trim();
   const status = payload.status;
-  const partySize = status === 'ABSENT' ? 0 : Math.max(1, parseInt(payload.partySize, 10) || 1);
   const submittedAt = payload.submittedAt || new Date().toISOString();
 
   if (status !== 'PRESENT' && status !== 'ABSENT') {
@@ -106,7 +101,6 @@ export async function submitRsvp(payload) {
           data: JSON.stringify({
             code,
             status,
-            partySize,
             submittedAt
           })
         })
@@ -134,21 +128,18 @@ export async function submitRsvp(payload) {
       const data = {
         code,
         status,
-        partySize,
         submittedAt
       };
       localStorage.setItem('hanna-rsvp', JSON.stringify(data));
       if (code) {
         localStorage.setItem(`hanna-guest-${code}`, JSON.stringify({
           firstName: 'Invité Démo',
-          maxPartySize: 4,
-          rsvp: status,
-          partySize: partySize
+          rsvp: status
         }));
       }
       return {
         ok: true,
-        saved: { status, partySize }
+        saved: { status }
       };
     } catch (err) {
       return { ok: false, error: 'LOCAL_STORAGE_ERROR' };

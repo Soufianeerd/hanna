@@ -7,6 +7,7 @@
 
 import gsap from 'gsap';
 import { sampleCardPose } from './cardPoseInterpolator.js';
+import { CardPresentationAnimation } from './cardPresentation.js';
 import { MOTION } from '../config/motion.js';
 import { EXPERIENCE_STATE } from '../experience/experienceState.js';
 
@@ -15,6 +16,7 @@ export class CardExtractionAnimation {
     this.scene = scene;
     this.stateManager = stateManager;
     this.timeline = null;
+    this.presentationAnim = null;
   }
 
   play({ onCardReady } = {}) {
@@ -26,9 +28,7 @@ export class CardExtractionAnimation {
       openScene, 
       openBackground, 
       openForeground, 
-      shadow, 
-      addressHotspot, 
-      rsvpOverlay 
+      shadow
     } = this.scene.elements;
 
     const cfg = MOTION.extraction;
@@ -64,7 +64,7 @@ export class CardExtractionAnimation {
         if (pose.isFreed && !isFreedTriggered) {
           isFreedTriggered = true;
 
-          // A. La carte passe au premier plan au-dessus du foreground
+          // A. La carte passe au premier plan
           if (card) {
             card.style.zIndex = '50';
           }
@@ -72,23 +72,7 @@ export class CardExtractionAnimation {
             cardClippingLayer.style.clipPath = 'none';
           }
 
-          // B. L'enveloppe entière recule vers le bas et s'efface en douceur
-          const envelopeLayers = [openBackground, openForeground].filter(Boolean);
-          if (envelopeLayers.length > 0) {
-            gsap.to(envelopeLayers, {
-              y: cfg.envelopeFadeY,        // +50px
-              scale: cfg.envelopeFadeScale, // 0.94
-              opacity: 0,
-              duration: cfg.envelopeFadeDuration, // 0.65s
-              ease: 'power2.inOut',
-              onComplete: () => {
-                envelopeLayers.forEach((el) => {
-                  el.style.display = 'none';
-                });
-              }
-            });
-          }
-
+          // B. L'ombre s'efface
           if (shadow) {
             gsap.to(shadow, {
               opacity: 0,
@@ -103,34 +87,14 @@ export class CardExtractionAnimation {
       }
     });
 
-    // 2. Fin d'extraction : la carte originale est centrée et prête pour l'interaction
+    // 2. Fin d'extraction : enchaînement direct et sans arrêt vers la présentation finale continue
     this.timeline.add(() => {
-      this.stateManager.setState(EXPERIENCE_STATE.CARD_READY);
-      if (this.scene.setCardReady) {
-        this.scene.setCardReady();
-      }
-
-      // Activation du hotspot de l'adresse
-      if (addressHotspot) {
-        addressHotspot.style.pointerEvents = 'auto';
-      }
-
-      // Apparition délicate du RSVP transparent sur le papier
-      if (rsvpOverlay) {
-        gsap.to(rsvpOverlay, {
-          opacity: 1,
-          duration: 0.35,
-          ease: 'power1.out',
-          onStart: () => {
-            rsvpOverlay.style.pointerEvents = 'auto';
-          },
-          onComplete: () => {
-            if (onCardReady) onCardReady();
-          }
-        });
-      } else {
-        if (onCardReady) onCardReady();
-      }
+      this.presentationAnim = new CardPresentationAnimation(this.scene, this.stateManager);
+      this.presentationAnim.play({
+        onComplete: () => {
+          if (onCardReady) onCardReady();
+        }
+      });
     });
   }
 
@@ -138,6 +102,10 @@ export class CardExtractionAnimation {
     if (this.timeline) {
       this.timeline.kill();
       this.timeline = null;
+    }
+    if (this.presentationAnim) {
+      this.presentationAnim.kill();
+      this.presentationAnim = null;
     }
   }
 }

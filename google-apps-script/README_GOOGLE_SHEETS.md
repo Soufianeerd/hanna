@@ -1,126 +1,111 @@
-# Guide d'Installation Google Sheets & Apps Script — Hanna RSVP
+# Hanna — Guide Complet Google Sheets & Google Apps Script (RSVP)
 
-Ce guide s'adresse directement à **Salma Hamidi** (`Hamidi.salma54@gmail.com`) pour brancher l'invitation en ligne [hannasalma.netlify.app](https://hannasalma.netlify.app/) sur son propre tableau Google Sheets sécurisé.
-
----
-
-## 1. Connexion au Bon Compte Google
-
-> [!IMPORTANT]
-> Le classeur Google Sheets doit obligatoirement être créé et hébergé sous le compte Google :  
-> **`Hamidi.salma54@gmail.com`**
-
-1. Ouvrez votre navigateur (Chrome recommandé).
-2. Vérifiez en haut à droite que votre photo/avatar correspond bien à **`Hamidi.salma54@gmail.com`** (déconnectez-vous des autres comptes si besoin ou ouvrez une session dédiée).
+Documentation officielle pour **Salma Hamidi** (`Hamidi.salma54@gmail.com`).  
+Ce guide explique comment configurer et déployer le backend Google Sheets pour l'invitation interactive de Henna Day.
 
 ---
 
-## 2. Création du Fichier Google Sheets
+## 1. Vue d'ensemble de l'Architecture
 
-1. Rendez-vous sur [sheets.google.com](https://sheets.google.com/).
-2. Cliquez sur **+ Créer une feuille de calcul vide**.
-3. Renommez le classeur en haut à gauche :  
-   `Hanna — RSVP Henna Day`
+Le site [https://hannasalma.netlify.app/](https://hannasalma.netlify.app/) est un site statique ultra-performant hébergé sur Netlify.
+Lorsqu'un invité valide son RSVP (**Présent(e)** ou **Absent(e)**), le formulaire envoie directement sa réponse à un script Google Apps Script relié à votre feuille Google Sheets privée.
 
----
-
-## 3. Installation du Code Apps Script
-
-1. Dans le menu en haut du classeur, cliquez sur :  
-   **Extensions** > **Apps Script**
-2. Un nouvel onglet s'ouvre avec l'éditeur de code Google Apps Script.
-3. Effacez le contenu existant par défaut (`function myFunction() { ... }`).
-4. Ouvrez le fichier local [`google-apps-script/Code.gs`](file:///Users/soufianeelrhadi/Desktop/Mariage/Hanna/google-apps-script/Code.gs) dans le projet Hanna, copiez l'intégralité du code et collez-le dans l'éditeur Apps Script.
-5. Cliquez sur l'icône **Enregistrer** (disquette) en haut.
+### Les 3 feuilles créées automatiquement :
+1. **`INVITES`** : Liste de vos invités avec leurs codes personnalisés et leurs réponses.
+2. **`DASHBOARD`** : Tableau récapitulatif des compteurs actualisé en temps réel (Actifs, Réponses reçues, En attente, Présents, Absents).
+3. **`LOGS`** : Journal technique horodaté de toutes les consultations et réponses pour traçabilité.
 
 ---
 
-## 4. Initialisation Automatique du Tableau (`setupHanna`)
+## 2. Structure exacte de la feuille `INVITES` (8 Colonnes)
 
-1. Dans la barre d'outils Apps Script, assurez-vous que la fonction sélectionnée est **`setupHanna`**.
-2. Cliquez sur le bouton **Exécuter** (icône ▶).
-3. **Autorisation Google requise (première fois uniquement)** :
-   - Une boîte de dialogue s'affiche : *« Autorisation requise »* -> Cliquez sur **Examiner les autorisations**.
-   - Sélectionnez votre compte `Hamidi.salma54@gmail.com`.
-   - Si un écran *« Google n'a pas validé cette application »* s'affiche, cliquez en bas à gauche sur **Paramètres avancés**, puis sur **Accéder à (nom du projet) (non sécurisé)**.
+| Colonne | En-tête | Description |
+|---|---|---|
+| **A** | `CODE` | Identifiant sécurisé unique (ex: `HN-A7K3Q9M2P8ZX`). |
+| **B** | `PRENOM` | Prénom de l'invité. |
+| **C** | `NOM` | Nom de l'invité. |
+| **D** | `RSVP` | Statut de la réponse (`PRESENT`, `ABSENT` ou vide si en attente). |
+| **E** | `DATE_REPONSE` | Date et heure de la première validation. |
+| **F** | `UPDATED_AT` | Date et heure de la dernière modification. |
+| **G** | `ACTIF` | `TRUE` (invitation active) ou `FALSE` (désactivée). |
+| **H** | `LIEN_INVITATION` | Lien personnel direct à envoyer à l'invité (ex: `https://hannasalma.netlify.app/?code=HN-...`). |
+
+---
+
+## 3. Configuration Initiale Pas-à-Pas
+
+### Étape 1 : Connexion au bon compte Google
+1. Vérifiez que vous êtes connectée avec l'adresse : **`Hamidi.salma54@gmail.com`**.
+2. Ouvrez [Google Sheets](https://sheets.google.com).
+3. Créez une nouvelle feuille de calcul vide et nommez-la : **`Hanna — RSVP Henna Day`**.
+
+### Étape 2 : Ajout du Script Google Apps Script
+1. Dans le menu de votre feuille, cliquez sur **Extensions** > **Apps Script**.
+2. Un éditeur s'ouvre. Effacez le texte par défaut (`function myFunction() { ... }`).
+3. Ouvrez le fichier [Code.gs](Code.gs), copiez l'intégralité du contenu et collez-le dans l'éditeur.
+4. Cliquez sur l'icône de disquette (**Enregistrer**).
+
+### Étape 3 : Exécution de l'initialisation (`setupHanna`)
+1. En haut de l'éditeur, sélectionnez la fonction **`setupHanna`** dans le menu déroulant.
+2. Cliquez sur le bouton **Exécuter**.
+3. Google affiche une demande d'autorisation :
+   - Cliquez sur **Examiner les autorisations**.
+   - Choisissez votre compte **`Hamidi.salma54@gmail.com`**.
+   - Cliquez sur **Paramètres avancés** (en bas à gauche du pop-up).
+   - Cliquez sur **Accéder à Hanna RSVP (non sécurisé)**.
    - Cliquez sur **Autoriser**.
-4. L'exécution se termine en quelques secondes.
-5. Revenez sur l'onglet de votre Google Sheet : vous constatez que **trois feuilles** ont été créées et mises en forme automatiquement :
-   - **`INVITES`** : liste des invités avec colonnes formatées et colorées en vert émeraude.
-   - **`DASHBOARD`** : tableau de bord avec les compteurs en temps réel.
-   - **`LOGS`** : journal des requêtes et confirmations.
+4. Revenez sur votre feuille Google Sheets : les feuilles `INVITES`, `DASHBOARD` et `LOGS` sont maintenant créées et formatées.
 
 ---
 
-## 5. Déploiement du Web App (API RSVP)
+## 4. Déploiement du Web App Google Apps Script
 
-Pour que le site Netlify puisse enregistrer les réponses en direct, il faut publier le script sous forme d'application Web :
-
-1. Dans Apps Script, cliquez sur le bouton bleu **Déployer** (en haut à droite) > **Nouveau déploiement**.
-2. Cliquez sur l'icône d'engrenage à gauche de *« Sélectionner le type »* et choisissez **Application Web**.
-3. Remplissez les champs comme suit :
-   - **Description** : `Hanna Production RSVP API`
+1. Dans l'éditeur Apps Script, cliquez sur le bouton bleu **Déployer** (en haut à droite) > **Nouveau déploiement**.
+2. Cliquez sur l'icône d'engrenage à côté de *Sélectionner un type* et choisissez **Application Web**.
+3. Remplissez la configuration suivante :
+   - **Description** : `Production RSVP Hanna v2`
    - **Exécuter en tant que** : **Moi (Hamidi.salma54@gmail.com)**
-   - **Qui a accès** : **Tout le monde** *(Anyone)*  
-     *(Nécessaire pour que les invités puissent envoyer leur RSVP depuis leur navigateur mobile ou desktop sans avoir besoin de se connecter à un compte Google)*.
+   - **Qui a accès** : **Tout le monde** (*Anyone*)
 4. Cliquez sur **Déployer**.
-5. Copiez l'**URL de l'application Web** fournie.  
-   > [!IMPORTANT]
-   > L'URL doit impérativement se terminer par **`/exec`** (et non `/dev`).  
-   > *Exemple : `https://script.google.com/macros/s/AKfycbx.../exec`*
+5. Google génère l'URL de l'application Web.
+6. **Copiez l'URL se terminant par `/exec`** (Exemple : `https://script.google.com/macros/s/AKfycbx.../exec`).
+
+> [!WARNING]
+> Copiez toujours l'URL se terminant par `/exec`. Ne jamais utiliser l'URL se terminant par `/dev`.
 
 ---
 
-## 6. Configuration sur Netlify
+## 5. Liaison avec Netlify
 
-1. Connectez-vous à votre tableau de bord [Netlify](https://app.netlify.com/).
-2. Cliquez sur le site **`hannasalma`** (ou rendez-vous dans `Site configuration`).
-3. Allez dans **Environment variables** (Variables d'environnement).
-4. Cliquez sur **Add a variable** :
+1. Connectez-vous sur [Netlify](https://app.netlify.com/).
+2. Ouvrez le site **`hannasalma`**.
+3. Allez dans **Site configuration** > **Environment variables**.
+4. Ajoutez ou modifiez la variable :
    - **Key** : `VITE_RSVP_ENDPOINT`
-   - **Value** : Collez l'URL de votre Web App copiée à l'étape 5 (`https://script.google.com/macros/s/.../exec`).
-5. Cliquez sur **Save**.
-6. Rendez-vous dans l'onglet **Deploys** > **Trigger deploy** > **Deploy site** pour compiler le site avec la nouvelle variable.
+   - **Value** : Collez l'URL de votre Web App Apps Script (terminant par `/exec`).
+5. Allez dans l'onglet **Deploys** > **Trigger deploy** > **Deploy site**.
 
 ---
 
-## 7. Gestion et Ajout des Invités
+## 6. Ajout des Invités et Génération Automatique des Liens
 
-### Étape A : Ajouter les noms dans la feuille `INVITES`
-Dans la feuille **`INVITES`**, remplissez simplement les colonnes :
-- **PRENOM** (ex: `Sarah`)
-- **NOM** (ex: `Benali`)
-- **MAX_PERSONNES** (ex: `2` si elle peut venir avec un accompagnant, ou `4` par défaut)
-- **ACTIF** : laissez vide ou mettez `TRUE`
-
-Laissez les colonnes **`CODE`** et **`LIEN_INVITATION`** vides.
-
-### Étape B : Générer les codes et les liens
-1. Allez dans Google Apps Script.
-2. Sélectionnez la fonction **`generateMissingInviteCodes`** dans la liste déroulante en haut.
-3. Cliquez sur **Exécuter** (▶).
-4. Revenez dans votre Google Sheet :
-   - Un code unique non devinable (ex: `HN-K8N2P4X7M9ZQ`) a été généré pour chaque nouvel invité.
-   - La colonne **`LIEN_INVITATION`** contient l'URL personnalisée complète :  
-     `https://hannasalma.netlify.app/?code=HN-K8N2P4X7M9ZQ`
-5. Vous n'avez plus qu'à copier ce lien et l'envoyer par WhatsApp / SMS à l'invité !
+1. Dans la feuille **`INVITES`**, remplissez simplement les colonnes :
+   - `PRENOM` (ex: `Salma`)
+   - `NOM` (ex: `Dupont`)
+   - `ACTIF` (mettre `TRUE`)
+   *(Laissez les colonnes `CODE` et `LIEN_INVITATION` vides).*
+2. Dans l'éditeur Apps Script, sélectionnez la fonction **`generateMissingInviteCodes`** et cliquez sur **Exécuter**.
+3. De retour sur Google Sheets, les colonnes `CODE` et `LIEN_INVITATION` ont été automatiquement générées avec des codes sécurisés.
+4. Il vous suffit de copier l'URL dans `LIEN_INVITATION` et de la transmettre à l'invité par SMS ou WhatsApp.
 
 ---
 
-## 8. Test Fonctionnel de Bout en Bout
+## 7. Tableau de Bord (`DASHBOARD`)
 
-1. Ouvrez un lien d'invitation généré dans un navigateur (ex: navigation privée sur smartphone ou desktop).
-2. Cliquez sur l'enveloppe -> admiration du retournement lent -> ouverture -> extraction continue.
-3. La carte finale s'affiche avec :
-   - L'heure corrigée : **« À PARTIR DE 18H »**.
-   - Le nouveau **S** calligraphique élégant de Salma.
-   - Le RSVP épuré dans l'espace vide inférieur.
-4. Cliquez sur **Présent(e)** :
-   - Le sélecteur du nombre de personnes (1 à 4) apparaît discrètement.
-   - Choisissez par exemple **3**.
-   - Cliquez sur **Valider**.
-5. La carte s'envole gracieusement vers le haut et le message de remerciement s'affiche.
-6. Ouvrez votre Google Sheet :
-   - Dans **`INVITES`** : la ligne de l'invité indique `RSVP = PRESENT`, `NB_PERSONNES = 3`, `NB_ACCOMPAGNANTS = 2`, avec la date et l'heure de réponse.
-   - Dans **`DASHBOARD`** : tous les compteurs (Total Présents, Total Personnes, Total Accompagnants) sont recalculés automatiquement.
-7. Si le même invité réouvre son lien plus tard, son choix précédent est restauré et il peut modifier sa réponse sans créer de doublon.
+Le tableau de bord est recalculé automatiquement côté serveur à chaque réponse validée :
+- **TOTAL INVITATIONS ACTIVES** : Nombre total d'invitations actives (`ACTIF = TRUE`).
+- **RÉPONSES REÇUES** : Total des invités ayant déjà répondu.
+- **EN ATTENTE** : Invités n'ayant pas encore répondu.
+- **PRÉSENTS** : Nombre de confirmations `PRESENT`.
+- **ABSENTS** : Nombre de réponses `ABSENT`.
+- **DERNIÈRE MISE À JOUR** : Date et heure du dernier enregistrement.
