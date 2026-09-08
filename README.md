@@ -144,6 +144,4 @@ HannaExperience (#app)
 - [x] **Phase 1** : Registre centralisé (`assets.js`, `geometry.js`), conventions du stage logique, analyse rigoureuse du scénario.
 - [x] **Phase 1.1** : Verrouillage géométrique absolu, boîte physique canonique `820 × 490`, superposition Front/Back à écart `0.00 px`.
 - [x] **Phase 2** : Apparition de l'enveloppe depuis le bas hors-écran, stabilisation sans bounce, transition fluide sans temps mort vers le flottement idle organique, ombre au sol réactive, scaling responsive, support prefers-reduced-motion.
-- [ ] **Phase 3** : Clic utilisateur + Retournement 3D 180° vers le dos avec sceau indépendant.
-- [ ] **Phase 4** : Rupture du sceau, ouverture du rabat et extraction dynamique de la carte.
-- [ ] **Phase 5** : Formulaire interactif RSVP et confirmation finale.
+- [x] **MVP Final Complet** : Clic enveloppe → Neutralisation douce → Flip 3D 180° → Dos fermé & Sceau de cire → Disparition du sceau → Transition enveloppe ouverte → Extraction réaliste de la carte (poses P12 à P26) → Carte seule au centre → Formulaire RSVP interactif (Présent / Absent) & Hotspot Google Maps → Sauvegarde localStorage → Envol postal vers le haut → Message de confirmation Quiet Luxury.

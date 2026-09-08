@@ -1,63 +1,122 @@
 /**
- * Configuration centralisée du système de mouvements et d'animations (Phase 2)
- * Tous les timings, courbes d'accélération et amplitudes sont consignés ici.
+ * Configuration centralisée du système de mouvements et d'animations (Full MVP Flow)
  */
 
 export const MOTION = {
   // Séquence d'entrée
   entrance: {
-    duration: 1.35,              // Durée principale de l'ascension (1.25 à 1.45s)
-    ease: 'power3.out',           // Courbe fluide sans rebond
-    startScale: 0.94,            // Échelle initiale sous l'écran
-    finalScale: 1.0,             // Échelle nominale
-    opacityDurationPercent: 0.65, // Opacité atteint 1 à 65% de la course (0.88s)
+    duration: 1.35,
+    ease: 'power3.out',
+    startScale: 0.94,
+    finalScale: 1.0,
+    opacityDurationPercent: 0.65,
     opacityEase: 'power2.out',
-    safetyMarginY: 60,           // Marge de sécurité sous le bas de l'écran (40 à 100px)
-
-    // Phase de stabilisation (micro-inertie)
+    safetyMarginY: 60,
     settle: {
-      overshootY: -6,            // Dépassement vertical doux (-6px)
-      overshootScale: 1.002,     // Micro-expansion imperceptible
-      duration: 0.22,            // 220ms (entre 180 et 260ms)
+      overshootY: -6,
+      overshootScale: 1.002,
+      duration: 0.22,
       ease: 'power2.out'
     }
   },
 
   // Flottement permanent (Idle Floating)
   idle: {
-    // Axe vertical (respiration lente)
     y: {
-      amplitude: 4.5,            // ±4.5px (±4 à 5px max)
-      duration: 3.1,             // 3.1s par demi-cycle (2.6 à 3.4s)
+      amplitude: 4.5,
+      duration: 3.1,
       ease: 'sine.inOut'
     },
-    // Rotation Z (déphasage organique évitant l'effet pendule mécanique)
     rotation: {
-      amplitude: 0.18,           // ±0.18° (±0.15° à ±0.22°)
-      duration: 3.7,             // 3.7s par demi-cycle
+      amplitude: 0.18,
+      duration: 3.7,
       ease: 'sine.inOut'
     }
   },
 
   // Ombre portée au sol (Ground Shadow)
   shadow: {
-    widthRatio: 0.70,            // 70% de la largeur enveloppe (820 * 0.70 = 574px)
-    baseHeight: 16,              // Hauteur de l'ellipse en px
-    blur: 16,                    // Rayon de flou
-    baseOpacity: 0.14,           // Opacité de repos (0.10 à 0.18)
-    idleOpacityMin: 0.12,        // Opacité quand l'enveloppe monte
-    idleOpacityMax: 0.16,        // Opacité quand l'enveloppe descend
-    idleScaleXMin: 0.98,         // Échelle X quand l'enveloppe descend
-    idleScaleXMax: 1.02          // Échelle X quand l'enveloppe monte
+    widthRatio: 0.70,
+    baseHeight: 16,
+    blur: 16,
+    baseOpacity: 0.14,
+    idleOpacityMin: 0.12,
+    idleOpacityMax: 0.16,
+    idleScaleXMin: 0.98,
+    idleScaleXMax: 1.02
+  },
+
+  // Neutralisation du floating avant le flip
+  neutralize: {
+    duration: 0.18,
+    ease: 'power2.out'
+  },
+
+  // Retournement 3D (Flip 180°)
+  flip: {
+    duration: 0.85,
+    ease: 'power2.inOut',
+    backPauseDuration: 0.14
+  },
+
+  // Disparition du sceau
+  seal: {
+    duration: 0.35,
+    overshootScale: 1.055,
+    endScale: 0.82,
+    endRotation: 2,
+    ease: 'power2.inOut'
+  },
+
+  // Bascule vers l'enveloppe ouverte
+  openSwitch: {
+    duration: 0.14,
+    ease: 'power1.inOut',
+    pauseBeforeExtraction: 0.10
+  },
+
+  // Extraction de la carte (P12 -> P26)
+  extraction: {
+    p12ToP17Duration: 0.80,
+    p17ToP24Duration: 0.70,
+    p24ToP26Duration: 0.40,
+    envelopeFadeDuration: 0.45,
+    envelopeFadeY: 40,
+    envelopeFadeScale: 0.94
+  },
+
+  // RSVP et soumission
+  rsvp: {
+    submitSimulatedDelay: 0.25,
+    panelFadeOutDuration: 0.20,
+    panelFadeOutY: 4
+  },
+
+  // Envoi postal vers le haut
+  cardSend: {
+    anticipationDuration: 0.14,
+    anticipationY: 4,
+    anticipationScale: 0.99,
+    anticipationEase: 'power1.in',
+    departureDuration: 0.92,
+    departureY: '-140vh',
+    departureEase: 'power2.in'
+  },
+
+  // Message de confirmation final
+  confirmation: {
+    delay: 0.20,
+    duration: 0.58,
+    yFrom: 8,
+    ease: 'power2.out'
   },
 
   // Mode accessibilité (prefers-reduced-motion)
   reducedMotion: {
-    duration: 0.40,              // 400ms
-    translateY: 25,              // Décalage vertical réduit
+    duration: 0.40,
+    translateY: 25,
     ease: 'power2.out'
   },
 
-  // Ajustement visuel du centrage vertical (légèrement au-dessus du centre géométrique)
-  verticalCenterOffsetPercent: -0.025 // -2.5% du viewport (environ -15 à -25px selon hauteur)
+  verticalCenterOffsetPercent: -0.025
 };
