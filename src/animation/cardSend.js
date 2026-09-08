@@ -16,7 +16,8 @@ export class CardSendAnimation {
   play({ onComplete } = {}) {
     this.kill();
 
-    const { card, rsvpPanel, confirmationMessage } = this.scene.elements;
+    const targetCard = this.scene.elements.interactiveCard || this.scene.elements.card;
+    const { rsvpPanel, confirmationMessage } = this.scene.elements;
     const cfg = MOTION.cardSend;
     const confCfg = MOTION.confirmation;
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -28,7 +29,7 @@ export class CardSendAnimation {
       }
     });
 
-    // 1. Fade-out du panneau RSVP
+    // 1. Fade-out du panneau RSVP s'il existe encore séparé
     if (rsvpPanel) {
       this.timeline.to(rsvpPanel, {
         opacity: 0,
@@ -47,18 +48,18 @@ export class CardSendAnimation {
 
     if (isReduced) {
       // Reduced motion : fade-out sobre vers le haut
-      this.timeline.to(card, {
+      this.timeline.to(targetCard, {
         y: -60,
         opacity: 0,
         duration: 0.5,
         ease: 'power2.out',
         onComplete: () => {
-          if (card) card.style.display = 'none';
+          if (targetCard) targetCard.style.display = 'none';
         }
       });
     } else {
       // 2. Prise d'élan vers le bas
-      this.timeline.to(card, {
+      this.timeline.to(targetCard, {
         y: `+=${cfg.anticipationY}`,
         scale: `*=${cfg.anticipationScale}`,
         duration: cfg.anticipationDuration,
@@ -66,19 +67,19 @@ export class CardSendAnimation {
       });
 
       // 3. Départ fulgurant vers le haut
-      this.timeline.to(card, {
+      this.timeline.to(targetCard, {
         y: cfg.departureY,
         duration: cfg.departureDuration,
         ease: cfg.departureEase
       });
 
       // Opacité maintenue jusqu'aux derniers 10%
-      this.timeline.to(card, {
+      this.timeline.to(targetCard, {
         opacity: 0,
         duration: cfg.departureDuration * 0.15,
         ease: 'power1.in',
         onComplete: () => {
-          if (card) card.style.display = 'none';
+          if (targetCard) targetCard.style.display = 'none';
         }
       }, `-=${cfg.departureDuration * 0.15}`);
     }

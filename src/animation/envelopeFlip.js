@@ -1,10 +1,10 @@
 /**
  * Séquence de retournement 3D et ouverture de l'enveloppe
- * - Neutralisation du floating sans à-coups
- * - Rotation 3D 180° de EnvelopeObject3D
- * - Micro-pause sur le dos fermé avec le sceau de cire
+ * - Neutralisation du floating sans à-coups + respiration naturelle de 140ms
+ * - Rotation 3D 180° ralentie et soyeuse (1.35s, power2.inOut)
+ * - Pause contemplative de 260ms sur le dos avec le sceau
  * - Disparition élégante du sceau (micro-expansion puis effacement)
- * - Bascule transparente vers l'enveloppe ouverte
+ * - Bascule transparente vers l'enveloppe ouverte (80-120ms)
  */
 
 import gsap from 'gsap';
@@ -20,6 +20,7 @@ export class EnvelopeFlipAnimation {
 
   /**
    * Neutralise le floating en douceur pour ramener le wrapper à y=0, rot=0
+   * suivi d'une courte respiration naturelle avant le déclenchement du flip
    */
   neutralizeMotion() {
     const motionWrapper = this.scene.elements.motionWrapper;
@@ -29,7 +30,10 @@ export class EnvelopeFlipAnimation {
         rotation: 0,
         duration: MOTION.neutralize.duration,
         ease: MOTION.neutralize.ease,
-        onComplete: resolve
+        onComplete: () => {
+          // Respiration naturelle de 140ms ("j'ai touché l'objet" -> "il se retourne")
+          setTimeout(resolve, MOTION.neutralize.pauseBeforeFlip * 1000);
+        }
       });
     });
   }
@@ -48,11 +52,11 @@ export class EnvelopeFlipAnimation {
 
     this.stateManager.setState(EXPERIENCE_STATE.ENVELOPE_TURNING);
 
-    const flipDuration = isReduced ? 0.45 : flipCfg.duration;
+    const flipDuration = isReduced ? 0.50 : flipCfg.duration;
 
     this.timeline = gsap.timeline();
 
-    // 1. Rotation 3D 0° -> 180°
+    // 1. Rotation 3D 0° -> 180° (1.35s ralentie et gracieuse)
     this.timeline.to(object3D, {
       rotationY: 180,
       duration: flipDuration,
@@ -65,7 +69,7 @@ export class EnvelopeFlipAnimation {
       this.stateManager.setState(EXPERIENCE_STATE.ENVELOPE_BACK_READY);
     });
 
-    // Micro-pause contemplative (140ms)
+    // Pause contemplative (260ms) pour bien apprécier le dos et le sceau
     this.timeline.to({}, { duration: flipCfg.backPauseDuration });
 
     // 3. Début ouverture sceau : SEAL_OPENING
@@ -74,7 +78,6 @@ export class EnvelopeFlipAnimation {
     });
 
     if (seal) {
-      // Disparition du sceau : micro-expansion (1.055) puis rétrécissement (0.82) et fade-out
       this.timeline.to(seal, {
         scale: sealCfg.overshootScale,
         rotation: sealCfg.endRotation,
@@ -93,7 +96,7 @@ export class EnvelopeFlipAnimation {
       });
     }
 
-    // 4. Transition BackFace -> OpenScene (140ms)
+    // 4. Transition BackFace -> OpenScene (80-120ms crossfade)
     this.timeline.add(() => {
       this.stateManager.setState(EXPERIENCE_STATE.OPEN_ENVELOPE_READY);
       if (openScene) {
@@ -115,7 +118,7 @@ export class EnvelopeFlipAnimation {
       }, '<');
     }
 
-    // Micro-pause avant de lancer l'extraction de la carte (100ms)
+    // Courte pause avant de lancer l'extraction de la carte (100ms)
     this.timeline.to({}, {
       duration: openCfg.pauseBeforeExtraction,
       onComplete: () => {

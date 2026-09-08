@@ -1,14 +1,14 @@
 /**
- * EnvelopeScene — Hiérarchie DOM complète et gestion des calques (Phase 2 -> MVP Final)
+ * EnvelopeScene — Hiérarchie DOM complète et gestion des calques
  *
- * Hiérarchie :
+ * Architecture :
  * ExperienceViewport
  * │
- * ├── GroundShadow
+ * ├── GroundShadow (ellipse réactive découplée)
  * │
- * ├── EnvelopeViewportScaler
+ * ├── EnvelopeViewportScaler (scaling responsive global uniquement)
  * │   │
- * │   └── EnvelopeMotionWrapper
+ * │   └── EnvelopeMotionWrapper (translateY, floating, scale)
  * │       │
  * │       ├── EnvelopeObject3D (3D preserve-3d)
  * │       │   ├── EnvelopeFrontFace (0deg)
@@ -18,16 +18,17 @@
  * │       │       ├── envelope-back-closed.png
  * │       │       └── EnvelopeSeal (envelope-seal.png)
  * │       │
- * │       └── EnvelopeOpenScene (Scène ouverte, initialement invisible)
+ * │       └── OpenEnvelopeAssembly (corps physique invariant 820 × 490)
  * │           ├── OpenEnvelopeBack (old-envelope-open.png, z-index 10)
- * │           ├── CardLayer (carteInvitation.png + hotspot + rsvp, z-index 20 -> 50)
- * │           └── PocketLayer (old-envelope-pocket.png, z-index 30)
+ * │           ├── CardRasterLayer (carteInvitation.png pour l'extraction P12->P26, z-index 20 -> 50)
+ * │           ├── PocketLayer (old-envelope-pocket.png, z-index 30)
+ * │           └── InteractiveInvitationCard (Carte HTML/CSS interactive complète, z-index 60)
  * │
- * └── ConfirmationMessage (Message final après envoi postal)
+ * └── ConfirmationMessage (Message final Quiet Luxury après envoi)
  */
 
 import { ASSETS } from '../config/assets.js';
-import { GEOMETRY, PDF_CARD_POSES, PHYSICAL_ENVELOPE } from '../config/geometry.js';
+import { GEOMETRY, OPEN_ENVELOPE_GEOMETRY, PDF_CARD_POSES, PHYSICAL_ENVELOPE } from '../config/geometry.js';
 import { MOTION } from '../config/motion.js';
 
 export class EnvelopeScene {
@@ -72,7 +73,7 @@ export class EnvelopeScene {
               <!-- Face arrière enveloppe (180deg) -->
               <div class="envelope-back-face" id="envelope-back-face">
                 <img class="envelope-back-img" src="${ASSETS.envelopeBackClosed.src}" alt="Dos fermé enveloppe Hanna" />
-                <!-- Sceau de cire indépendant -->
+                <!-- Sceau de cire indépendant sur le dos -->
                 <div class="envelope-seal" id="envelope-seal">
                   <img class="envelope-seal-img" src="${ASSETS.envelopeSeal.src}" alt="Sceau de cire" />
                 </div>
@@ -84,53 +85,95 @@ export class EnvelopeScene {
               </div>
             </div>
 
-            <!-- 2. Scène ouverte (Open Envelope + Card + Pocket) -->
-            <div class="envelope-open-scene" id="envelope-open-scene">
-              <!-- Fond enveloppe ouverte avec rabat supérieur déplié -->
+            <!-- 2. Assemblée enveloppe ouverte (corps physique strictement invariant) -->
+            <div class="open-envelope-assembly" id="open-envelope-assembly">
+              <!-- Fond enveloppe ouverte avec rabat supérieur -->
               <div class="open-envelope-layer" id="open-envelope-layer">
-                <img class="open-envelope-img" src="${ASSETS.envelopeOpenReference.src}" alt="Enveloppe ouverte" />
+                <img class="open-envelope-img" src="${ASSETS.envelopeOpenReference.src}" alt="Fond enveloppe ouverte" />
               </div>
 
-              <!-- Carte d'invitation avec hotspot et formulaire RSVP -->
-              <div class="card-layer" id="card-layer">
-                <img class="card-img" src="${ASSETS.invitationCard.src}" alt="Carte d'invitation Henna Day" />
-
-                <!-- Hotspot adresse accessible vers Google Maps -->
-                <a class="address-hotspot" 
-                   href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" 
-                   target="_blank" 
-                   rel="noopener noreferrer" 
-                   aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps">
-                </a>
-
-                <!-- Panneau RSVP intégré en bas de carte -->
-                <div class="rsvp-panel" id="rsvp-panel">
-                  <p class="rsvp-title">SEREZ-VOUS PRÉSENT(E) ?</p>
-                  <div class="rsvp-options" role="group" aria-label="Présence à l'événement">
-                    <button type="button" class="rsvp-opt-btn" data-choice="PRESENT" aria-pressed="false">
-                      Présent(e)
-                    </button>
-                    <button type="button" class="rsvp-opt-btn" data-choice="ABSENT" aria-pressed="false">
-                      Absent(e)
-                    </button>
-                  </div>
-                  <button type="button" class="rsvp-submit" id="rsvp-submit">
-                    Valider ma réponse
-                  </button>
-                  <p class="rsvp-error" id="rsvp-error" aria-live="polite"></p>
-                </div>
+              <!-- Carte Raster pour l'extraction fidèle du PDF (P12 -> P26) -->
+              <div class="card-raster-layer" id="card-raster-layer">
+                <img class="card-raster-img" src="${ASSETS.invitationCard.src}" alt="Carte d'invitation" />
               </div>
 
-              <!-- Poche avant (masque physique inférieur) -->
+              <!-- Poche avant (masque physique inférieur parfaitement aligné sur le corps) -->
               <div class="pocket-layer" id="pocket-layer">
                 <img class="pocket-img" src="${ASSETS.envelopePocket.src}" alt="Poche avant enveloppe" />
               </div>
+
+              <!-- 3. Carte Interactive reconstruite en HTML/CSS (active à CARD_READY) -->
+              <div class="interactive-invitation-card" id="interactive-invitation-card">
+                <!-- Décorations visuelles extraites de carteInvitation.png -->
+                <div class="decor-layer" aria-hidden="true">
+                  <img class="interactive-decor-top" src="${ASSETS.invitationCard.src}" alt="" />
+                  <img class="interactive-decor-tassels" src="${ASSETS.invitationCard.src}" alt="" />
+                  <img class="interactive-decor-table" src="${ASSETS.invitationCard.src}" alt="" />
+                  <img class="interactive-decor-bottom-right" src="${ASSETS.invitationCard.src}" alt="" />
+                </div>
+
+                <!-- Contenu typographique et interactif -->
+                <div class="interactive-card-content">
+                  <div class="card-bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+                  <div class="card-welcome">MARHABABIKOUM TO</div>
+                  <div class="card-main-title">Salma's Henna Day</div>
+
+                  <div class="card-date-container">
+                    <div class="card-date-line"></div>
+                    <div class="card-date-row">
+                      <span class="date-day">MERCREDI</span>
+                      <span class="date-num">21</span>
+                      <span class="date-month">OCTOBRE</span>
+                    </div>
+                    <div class="card-date-line"></div>
+                  </div>
+
+                  <div class="card-time">À PARTIR DE 18H30</div>
+
+                  <!-- Bloc adresse entièrement cliquable vers Google Maps -->
+                  <a class="card-venue-block" 
+                     href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" 
+                     target="_blank" 
+                     rel="noopener noreferrer" 
+                     aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps">
+                    <div class="venue-title">LA SALLE DES FÊTES</div>
+                    <div class="venue-subtitle">MAURICE GÉRARDIN DE DOMMARTIN-LÈS-TOUL</div>
+                    <div class="venue-street">All. de l’Île des Sables,<br>54200 Dommartin-lès-Toul</div>
+                    <div class="venue-itinerary-hint">Voir l'itinéraire ↗</div>
+                  </a>
+
+                  <!-- Ligne séparatrice délicate -->
+                  <div class="card-soft-separator"></div>
+
+                  <!-- Formulaire RSVP intégré dans la composition -->
+                  <div class="card-integrated-rsvp" id="card-integrated-rsvp">
+                    <div class="rsvp-top-label">RSVP</div>
+                    <div class="rsvp-prompt-text">Serez-vous présent(e) ?</div>
+
+                    <div class="rsvp-buttons-group" role="group" aria-label="Présence à l'événement">
+                      <button type="button" class="rsvp-choice-btn" data-choice="PRESENT" aria-pressed="false">
+                        Présent(e)
+                      </button>
+                      <button type="button" class="rsvp-choice-btn" data-choice="ABSENT" aria-pressed="false">
+                        Absent(e)
+                      </button>
+                    </div>
+
+                    <button type="button" class="rsvp-validate-btn" id="rsvp-validate-btn">
+                      Valider ma réponse
+                    </button>
+
+                    <div class="rsvp-status-message" id="rsvp-status-message" aria-live="polite"></div>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
           </div>
         </div>
 
-        <!-- 3. Message de confirmation final après envoi -->
+        <!-- 4. Message de confirmation final après envoi -->
         <div class="confirmation-message" id="confirmation-message" style="display: none;">
           <h2 class="confirmation-title" id="confirmation-title">Merci pour votre réponse</h2>
           <p class="confirmation-text" id="confirmation-text"></p>
@@ -156,17 +199,17 @@ export class EnvelopeScene {
       seal: this.container.querySelector('#envelope-seal'),
       boundsGuide: this.container.querySelector('#physical-bounds-guide'),
 
-      // Open scene
-      openScene: this.container.querySelector('#envelope-open-scene'),
+      // Open assembly
+      openScene: this.container.querySelector('#open-envelope-assembly'),
       openEnvelope: this.container.querySelector('#open-envelope-layer'),
-      card: this.container.querySelector('#card-layer'),
+      card: this.container.querySelector('#card-raster-layer'),
       pocket: this.container.querySelector('#pocket-layer'),
+      interactiveCard: this.container.querySelector('#interactive-invitation-card'),
 
       // RSVP & Confirmation
-      rsvpPanel: this.container.querySelector('#rsvp-panel'),
-      rsvpSubmit: this.container.querySelector('#rsvp-submit'),
-      rsvpError: this.container.querySelector('#rsvp-error'),
-      rsvpOptionBtns: this.container.querySelectorAll('.rsvp-opt-btn'),
+      rsvpSubmit: this.container.querySelector('#rsvp-validate-btn'),
+      rsvpStatusMsg: this.container.querySelector('#rsvp-status-message'),
+      rsvpOptionBtns: this.container.querySelectorAll('.rsvp-choice-btn'),
       confirmationMessage: this.container.querySelector('#confirmation-message'),
       confirmationTitle: this.container.querySelector('#confirmation-title'),
       confirmationText: this.container.querySelector('#confirmation-text')
@@ -174,8 +217,9 @@ export class EnvelopeScene {
   }
 
   applyCalibratedGeometry() {
-    const { object3D, frontFace, backFace, seal, openEnvelope, card, pocket } = this.elements;
-    const { closedFront, closedBack, seal: sealGeom, openReference, card: cardGeom, pocket: pocketGeom } = GEOMETRY;
+    const { object3D, frontFace, backFace, seal, openEnvelope, card, pocket, interactiveCard } = this.elements;
+    const { closedFront, closedBack, seal: sealGeom, card: cardGeom } = GEOMETRY;
+    const openGeom = OPEN_ENVELOPE_GEOMETRY;
 
     // EnvelopeObject3D (boîte physique canonique 820 × 490)
     object3D.style.width = `${PHYSICAL_ENVELOPE.width}px`;
@@ -202,27 +246,36 @@ export class EnvelopeScene {
     seal.style.marginTop = `${-sealGeom.height / 2}px`;
     seal.style.transform = `translate3d(${sealGeom.x}px, ${sealGeom.y}px, 1px)`;
 
-    // OPEN ENVELOPE (820 × 810.74, alignée à y = -40px)
-    openEnvelope.style.width = `${openReference.width}px`;
-    openEnvelope.style.height = `${openReference.height}px`;
-    openEnvelope.style.marginLeft = `${-openReference.width / 2}px`;
-    openEnvelope.style.marginTop = `${-openReference.height / 2}px`;
-    openEnvelope.style.transform = `translate3d(${openReference.x}px, ${openReference.y}px, 0)`;
+    // OPEN ENVELOPE BACK (calibré rigoureusement sur le même corps 820 × 490, bottom=+245)
+    openEnvelope.style.width = `${openGeom.openBack.width}px`;
+    openEnvelope.style.height = `${openGeom.openBack.height}px`;
+    openEnvelope.style.marginLeft = `${-openGeom.openBack.width / 2}px`;
+    openEnvelope.style.marginTop = `${-openGeom.openBack.height / 2}px`;
+    openEnvelope.style.transform = `translate3d(${openGeom.openBack.x}px, ${openGeom.openBack.y}px, 0)`;
 
-    // POCKET (836.89 × 506.32, x: 0.27, y: +36.84)
-    pocket.style.width = `${pocketGeom.width}px`;
-    pocket.style.height = `${pocketGeom.height}px`;
-    pocket.style.marginLeft = `${-pocketGeom.width / 2}px`;
-    pocket.style.marginTop = `${-pocketGeom.height / 2}px`;
-    pocket.style.transform = `translate3d(${pocketGeom.x}px, ${pocketGeom.y}px, 0)`;
+    // POCKET (calibré rigoureusement sur le même corps 820 × 490, bottom=+245)
+    pocket.style.width = `${openGeom.pocket.width}px`;
+    pocket.style.height = `${openGeom.pocket.height}px`;
+    pocket.style.marginLeft = `${-openGeom.pocket.width / 2}px`;
+    pocket.style.marginTop = `${-openGeom.pocket.height / 2}px`;
+    pocket.style.transform = `translate3d(${openGeom.pocket.x}px, ${openGeom.pocket.y}px, 0)`;
 
-    // CARD (320 × 568.59, position initiale P12)
+    // CARD RASTER (320 × 568.59, position initiale P12)
     card.style.width = `${cardGeom.width}px`;
     card.style.height = `${cardGeom.height}px`;
     card.style.marginLeft = `${-cardGeom.width / 2}px`;
     card.style.marginTop = `${-cardGeom.height / 2}px`;
     const p12 = PDF_CARD_POSES.P12;
     card.style.transform = `translate3d(${p12.x}px, ${p12.y}px, 0) rotate(${p12.rotation}deg) scale(${p12.scale})`;
+
+    // INTERACTIVE INVITATION CARD (dimensions finales P26 : 320*1.30 = 416px par 739.17px)
+    const cardFinalW = cardGeom.width * PDF_CARD_POSES.P26.scale;
+    const cardFinalH = cardGeom.height * PDF_CARD_POSES.P26.scale;
+    interactiveCard.style.width = `${cardFinalW}px`;
+    interactiveCard.style.height = `${cardFinalH}px`;
+    interactiveCard.style.marginLeft = `${-cardFinalW / 2}px`;
+    interactiveCard.style.marginTop = `${-cardFinalH / 2}px`;
+    interactiveCard.style.transform = `translate3d(0px, 0px, 0px)`;
   }
 
   setupInteractions() {
@@ -276,14 +329,16 @@ export class EnvelopeScene {
   }
 
   showRsvpError(msg) {
-    if (this.elements.rsvpError) {
-      this.elements.rsvpError.textContent = msg;
+    if (this.elements.rsvpStatusMsg) {
+      this.elements.rsvpStatusMsg.textContent = msg;
+      this.elements.rsvpStatusMsg.classList.add('has-error');
     }
   }
 
   clearRsvpError() {
-    if (this.elements.rsvpError) {
-      this.elements.rsvpError.textContent = '';
+    if (this.elements.rsvpStatusMsg) {
+      this.elements.rsvpStatusMsg.textContent = '';
+      this.elements.rsvpStatusMsg.classList.remove('has-error');
     }
   }
 
@@ -293,6 +348,11 @@ export class EnvelopeScene {
     });
     if (this.elements.rsvpSubmit) {
       this.elements.rsvpSubmit.disabled = disabled;
+      if (disabled) {
+        this.elements.rsvpSubmit.textContent = 'Envoi en cours...';
+      } else {
+        this.elements.rsvpSubmit.textContent = 'Valider ma réponse';
+      }
     }
   }
 

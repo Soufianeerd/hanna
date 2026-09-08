@@ -140,9 +140,9 @@ body.hanna-experience-active {
 }
 
 /* ==================================================
-   Scène Ouverte (Open Envelope + Card + Pocket)
+   Scène Ouverte (OpenEnvelopeAssembly : Back + Card + Pocket + InteractiveCard)
    ================================================== */
-.envelope-open-scene {
+.open-envelope-assembly {
   position: absolute;
   top: 0;
   left: 0;
@@ -151,7 +151,7 @@ body.hanna-experience-active {
   pointer-events: auto;
   opacity: 0;
   visibility: hidden;
-  will-change: opacity;
+  will-change: opacity, transform;
 }
 
 .open-envelope-layer {
@@ -162,16 +162,28 @@ body.hanna-experience-active {
   pointer-events: none;
   z-index: 10;
   will-change: transform, opacity;
+  /* Masque léger sur la partie basse pour éviter tout double contour avec la pocket */
+  clip-path: inset(0% 0% 12% 0%);
 }
 
-.card-layer {
+.card-raster-layer {
   position: absolute;
   top: 50%;
   left: 50%;
   transform-origin: 50% 50%;
-  pointer-events: auto;
+  pointer-events: none;
   z-index: 20;
   will-change: transform, opacity;
+}
+
+.card-raster-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .pocket-layer {
@@ -184,117 +196,328 @@ body.hanna-experience-active {
   will-change: transform, opacity;
 }
 
-/* Hotspot adresse vers Google Maps */
-.address-hotspot {
-  position: absolute;
-  top: 52%;
-  left: 6%;
-  width: 88%;
-  height: 18%;
-  z-index: 40;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: background-color 0.2s ease;
-  text-decoration: none;
-}
-
-.address-hotspot:hover {
-  background-color: rgba(21, 80, 57, 0.08);
-}
-
 /* ==================================================
-   Panneau Formulaire RSVP (Style Papeterie)
+   Carte Interactive Reconstruite en HTML/CSS
    ================================================== */
-.rsvp-panel {
+.interactive-invitation-card {
   position: absolute;
-  bottom: 5%;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  width: 88%;
-  max-width: 290px;
-  background: rgba(247, 244, 236, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(21, 80, 57, 0.3);
+  transform-origin: 50% 50%;
+  background-color: #F7F4EC;
   border-radius: 8px;
-  padding: 10px 12px;
-  text-align: center;
-  box-shadow: 0 6px 20px rgba(21, 80, 57, 0.12);
-  z-index: 45;
-  transition: all 0.2s ease;
+  box-shadow: 0 14px 42px rgba(21, 80, 57, 0.16), 0 3px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  z-index: 60;
+  display: none; /* Révélée en crossfade à CARD_READY */
+  opacity: 0;
+  flex-direction: column;
+  pointer-events: auto;
+  will-change: transform, opacity;
 }
 
-.rsvp-title {
-  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
-  font-size: 12px;
-  letter-spacing: 0.14em;
+/* Décorations visuelles extraites de carteInvitation.png sans texte raster */
+.decor-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.interactive-decor-top,
+.interactive-decor-tassels,
+.interactive-decor-table,
+.interactive-decor-bottom-right {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* 1. Motif géométrique supérieur (arche / rosace) sans le Bismillah raster (0% à 23.5%) */
+.interactive-decor-top {
+  clip-path: polygon(14% 0%, 86% 0%, 86% 23.5%, 14% 23.5%);
+}
+
+/* 2. Pompons décoratifs vert émeraude sur le bord gauche supérieur (0% à 32%) */
+.interactive-decor-tassels {
+  clip-path: polygon(0% 0%, 14% 0%, 14% 32%, 0% 32%);
+}
+
+/* 3. Table de cérémonie du henné en bas à gauche */
+.interactive-decor-table {
+  clip-path: polygon(0% 68%, 28% 68%, 28% 100%, 0% 100%);
+}
+
+/* 4. Motif d'angle géométrique inférieur droit */
+.interactive-decor-bottom-right {
+  clip-path: polygon(72% 82%, 100% 82%, 100% 100%, 72% 100%);
+}
+
+/* Contenu typographique au centre de la carte (démarre sous le motif supérieur) */
+.interactive-card-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 162px 42px 16px;
+  box-sizing: border-box;
+  text-align: center;
   color: #155039;
+}
+
+/* Bismillah calligraphique */
+.card-bismillah {
+  font-family: 'Amiri', 'Scheherazade New', 'Traditional Arabic', serif;
+  font-size: 16px;
+  color: #155039;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  margin-top: 0;
+}
+
+/* Marhababikoum to */
+.card-welcome {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 10.5px;
   font-weight: 600;
-  margin-bottom: 8px;
+  letter-spacing: 0.16em;
+  color: #155039;
+  margin-top: 6px;
   text-transform: uppercase;
 }
 
-.rsvp-options {
+/* Titre principal manuscrit Salma's Henna Day */
+.card-main-title {
+  font-family: 'Alex Brush', cursive, var(--font-serif, 'Cormorant Garamond', serif);
+  font-size: 38px;
+  font-weight: 400;
+  color: #155039;
+  line-height: 1.1;
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+
+/* Bloc Date (Lignes fines + Mercredi 21 Octobre) */
+.card-date-container {
+  width: 80%;
+  max-width: 240px;
   display: flex;
-  gap: 8px;
+  align-items: center;
   justify-content: center;
+  gap: 12px;
+  margin: 4px 0 2px;
+}
+
+.card-date-line {
+  flex: 1;
+  height: 1px;
+  background-color: rgba(21, 80, 57, 0.45);
+}
+
+.card-date-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #155039;
+}
+
+.date-day,
+.date-month {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.date-num {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Horaires */
+.card-time {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: #155039;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+/* Bloc Adresse entièrement cliquable vers Google Maps */
+.card-venue-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  color: #155039;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+  max-width: 290px;
+}
+
+.card-venue-block:hover,
+.card-venue-block:focus-visible {
+  background-color: rgba(21, 80, 57, 0.05);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.venue-title {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+}
+
+.venue-subtitle {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.25;
+  margin-top: 2px;
+}
+
+.venue-street {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 11px;
+  color: #235c44;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+.venue-itinerary-hint {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #155039;
+  opacity: 0.85;
+  margin-top: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Ligne séparatrice délicate */
+.card-soft-separator {
+  width: 50px;
+  height: 1px;
+  background: rgba(21, 80, 57, 0.35);
+  margin: 10px auto;
+}
+
+/* Formulaire RSVP intégré dans la composition papeterie */
+.card-integrated-rsvp {
+  width: 100%;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.rsvp-top-label {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: #155039;
+  text-transform: uppercase;
+}
+
+.rsvp-prompt-text {
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 12px;
+  font-style: italic;
+  color: #235c44;
+  margin-top: 2px;
   margin-bottom: 8px;
 }
 
-.rsvp-opt-btn {
+.rsvp-buttons-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+.rsvp-choice-btn {
   flex: 1;
-  border: 1px solid #155039;
+  border: 1.5px solid #155039;
   background: transparent;
   color: #155039;
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 5px 8px;
-  border-radius: 5px;
+  padding: 5px 10px;
+  border-radius: 18px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   outline: none;
 }
 
-.rsvp-opt-btn:hover {
-  background: rgba(229, 241, 234, 0.6);
+.rsvp-choice-btn:hover {
+  background: rgba(229, 241, 234, 0.7);
 }
 
-.rsvp-opt-btn.is-selected {
-  background: #E5F1EA;
+.rsvp-choice-btn.is-selected {
+  background: #155039;
   border-color: #155039;
-  color: #0f3928;
-  font-weight: 700;
-  box-shadow: inset 0 1px 3px rgba(21, 80, 57, 0.15);
+  color: #F7F4EC;
+  box-shadow: 0 2px 8px rgba(21, 80, 57, 0.22);
 }
 
-.rsvp-submit {
+.rsvp-validate-btn {
   width: 100%;
+  max-width: 180px;
+  margin-top: 8px;
   background: #155039;
   color: #F7F4EC;
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  padding: 6px 0;
+  padding: 6px 14px;
   border: none;
-  border-radius: 5px;
+  border-radius: 18px;
   cursor: pointer;
-  transition: background-color 0.2s ease, opacity 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
   outline: none;
 }
 
-.rsvp-submit:hover {
-  background: #1a6347;
+.rsvp-validate-btn:hover {
+  background: #0f3928;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(21, 80, 57, 0.25);
 }
 
-.rsvp-submit:disabled,
-.rsvp-opt-btn:disabled {
+.rsvp-validate-btn:disabled,
+.rsvp-choice-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+  transform: none;
 }
 
-.rsvp-error {
+.rsvp-status-message {
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
   font-size: 11px;
   color: #b91c1c;
@@ -464,16 +687,47 @@ body.hanna-experience-active {
   .confirmation-text {
     font-size: 1.1rem;
   }
-  .rsvp-panel {
-    padding: 8px 10px;
-    bottom: 4%;
+
+  /* Ajustements subtils pour l'invitation sur petit écran */
+  .interactive-card-content {
+    padding: 152px 28px 12px;
   }
-  .rsvp-opt-btn {
-    font-size: 13px;
-    padding: 4px 6px;
+  .card-bismillah {
+    font-size: 14px;
+    margin-top: 0;
   }
-  .rsvp-submit {
-    font-size: 13px;
-    padding: 5px 0;
+  .card-welcome {
+    font-size: 9.5px;
+    margin-top: 4px;
+  }
+  .card-main-title {
+    font-size: 32px;
+    margin-top: 1px;
+    margin-bottom: 2px;
+  }
+  .card-date-container {
+    max-width: 210px;
+    margin: 2px 0;
+  }
+  .date-num {
+    font-size: 22px;
+  }
+  .venue-street {
+    font-size: 10px;
+  }
+  .card-soft-separator {
+    margin: 6px auto;
+  }
+  .rsvp-prompt-text {
+    margin-bottom: 4px;
+  }
+  .rsvp-choice-btn {
+    font-size: 11.5px;
+    padding: 4px 8px;
+  }
+  .rsvp-validate-btn {
+    font-size: 12px;
+    padding: 5px 12px;
+    margin-top: 5px;
   }
 }

@@ -39,6 +39,7 @@ import { EnvelopeIdleAnimation } from '../animation/envelopeIdle.js';
 import { EnvelopeFlipAnimation } from '../animation/envelopeFlip.js';
 import { CardExtractionAnimation } from '../animation/cardExtraction.js';
 import { CardSendAnimation } from '../animation/cardSend.js';
+import { submitRsvp } from '../services/rsvpService.js';
 
 export class HannaExperience {
   constructor(container, options = {}) {
@@ -162,30 +163,31 @@ export class HannaExperience {
     });
   }
 
-  handleRsvpSubmit(choice) {
+  async handleRsvpSubmit(choice) {
     if (!this.stateManager.is(EXPERIENCE_STATE.CARD_READY)) return;
 
     this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUBMITTING);
     this.scene.setRsvpButtonsDisabled(true);
 
-    // Sauvegarde localStorage (MVP)
-    try {
-      localStorage.setItem('hanna-rsvp', JSON.stringify({
-        status: choice,
-        submittedAt: new Date().toISOString()
-      }));
-    } catch (e) {
-      console.warn('[HannaExperience] Erreur localStorage:', e);
-    }
+    const payload = {
+      firstName: '',
+      status: choice,
+      submittedAt: new Date().toISOString()
+    };
 
-    // Simulation de validation réseau (250ms)
-    setTimeout(() => {
+    const res = await submitRsvp(payload);
+
+    if (res.success) {
       this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);
       this.scene.displayConfirmation(choice);
 
-      // Animation d'envoi de la carte vers le haut
+      // Animation d'envoi de la carte interactive vers le haut
       this.send.play();
-    }, 250);
+    } else {
+      this.stateManager.setState(EXPERIENCE_STATE.CARD_READY);
+      this.scene.showRsvpError(res.error || 'Une erreur est survenue. Merci de réessayer.');
+      this.scene.setRsvpButtonsDisabled(false);
+    }
   }
 
   handleStateChange(newState) {

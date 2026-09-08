@@ -46,6 +46,32 @@ export const PHYSICAL_ENVELOPE = {
   aspectRatio: 820 / 490 // 1.6735
 };
 
+/**
+ * Géométrie canonique du corps de l'enveloppe ouverte (OpenEnvelopeAssembly).
+ * Le corps (body) partage exactement les mêmes repères physiques que PHYSICAL_ENVELOPE (820 × 490).
+ */
+export const OPEN_ENVELOPE_GEOMETRY = {
+  bodyWidth: 820,
+  bodyHeight: 490,
+  bodyLeft: -410,
+  bodyRight: 410,
+  bodyBottom: 245,
+  pocketTopLine: -252,
+  flapApexY: -565.73,
+  openBack: {
+    x: 1.16,
+    y: -149.93,
+    width: 1119.10,
+    height: 839.32
+  },
+  pocket: {
+    x: 0.28,
+    y: -0.99,
+    width: 855.07,
+    height: 570.05
+  }
+};
+
 // Calcul automatique des transformations normalisées
 const frontFit = fitVisibleBoundsToPhysicalBox(ASSETS.envelopeFront, PHYSICAL_ENVELOPE);
 const backFit = fitVisibleBoundsToPhysicalBox(ASSETS.envelopeBackClosed, PHYSICAL_ENVELOPE);

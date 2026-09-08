@@ -1,13 +1,11 @@
 /**
- * Animation de flottement permanent (Idle Floating) — Phase 2
+ * Animation de flottement permanent (Idle Floating)
  *
- * Caractéristiques :
- * - Amplitude verticale discrète : ±4.5px
- * - Rotation Z minime : ±0.18°
- * - Déphasage organique entre Y (3.1s) et rotateZ (3.7s) pour éviter l'effet pendule
- * - Ombre réactive au sol (s'élargit et s'estompe quand l'enveloppe monte)
- * - Transitions sans à-coups depuis la fin du settle
- * - Désactivé en mode prefers-reduced-motion
+ * Mouvement calibré en pixels écran réels (indépendant du runtimeScale) :
+ * - Amplitude Y visible constante (~11px desktop, ~9px mobile)
+ * - Amplitude rotation Z : ±0.30°
+ * - Déphasage organique entre Y (3.0s) et rotation (3.8s)
+ * - Ombre réactive couplée (respiration d'échelle et d'opacité)
  */
 
 import gsap from 'gsap';
@@ -18,6 +16,20 @@ export class EnvelopeIdleAnimation {
     this.scene = scene;
     this.tweens = [];
     this.isRunning = false;
+  }
+
+  /**
+   * Calcule l'amplitude logique en fonction de la taille d'écran et du runtimeScale
+   */
+  calculateLogicalAmplitude() {
+    const isMobile = window.innerWidth < 600;
+    const targetScreenAmp = isMobile
+      ? MOTION.idle.screenAmplitudeYMobile
+      : MOTION.idle.screenAmplitudeYDesktop;
+
+    const runtimeScale = this.scene.runtimeScale || 1;
+    // logicalAmplitude * runtimeScale = targetScreenAmp
+    return targetScreenAmp / runtimeScale;
   }
 
   start() {
@@ -36,16 +48,18 @@ export class EnvelopeIdleAnimation {
     const { idle, shadow: shadowCfg } = MOTION;
     this.isRunning = true;
 
-    // 1. Mouvement vertical (Y) : amorce fluide depuis 0 vers -amplitude, puis oscillation continue
+    const logicalAmpY = this.calculateLogicalAmplitude();
+
+    // 1. Mouvement vertical (Y) : amorce fluide vers -amplitude, puis oscillation continue
     const startYLoop = () => {
       if (!this.isRunning) return;
       const tweenY = gsap.fromTo(
         motionWrapper,
-        { y: -idle.y.amplitude },
+        { y: -logicalAmpY },
         {
-          y: idle.y.amplitude,
-          duration: idle.y.duration,
-          ease: idle.y.ease,
+          y: logicalAmpY * 0.85, // Légère asymétrie naturelle (-logicalAmpY à +0.85*logicalAmpY)
+          duration: idle.yDuration,
+          ease: idle.yEase,
           yoyo: true,
           repeat: -1
         }
@@ -54,23 +68,23 @@ export class EnvelopeIdleAnimation {
     };
 
     const initialYTween = gsap.to(motionWrapper, {
-      y: -idle.y.amplitude,
-      duration: idle.y.duration / 2,
+      y: -logicalAmpY,
+      duration: idle.yDuration / 2,
       ease: 'sine.out',
       onComplete: startYLoop
     });
     this.tweens.push(initialYTween);
 
-    // 2. Rotation Z : déphasée pour un mouvement organique vivant
+    // 2. Rotation Z : déphasée pour un mouvement organique vivant (3.8s)
     const startRotLoop = () => {
       if (!this.isRunning) return;
       const tweenRot = gsap.fromTo(
         motionWrapper,
-        { rotation: idle.rotation.amplitude },
+        { rotation: idle.rotationAmplitude },
         {
-          rotation: -idle.rotation.amplitude,
-          duration: idle.rotation.duration,
-          ease: idle.rotation.ease,
+          rotation: -idle.rotationAmplitude,
+          duration: idle.rotationDuration,
+          ease: idle.rotationEase,
           yoyo: true,
           repeat: -1
         }
@@ -79,8 +93,8 @@ export class EnvelopeIdleAnimation {
     };
 
     const initialRotTween = gsap.to(motionWrapper, {
-      rotation: idle.rotation.amplitude,
-      duration: idle.rotation.duration / 2,
+      rotation: idle.rotationAmplitude,
+      duration: idle.rotationDuration / 2,
       ease: 'sine.out',
       onComplete: startRotLoop
     });
@@ -99,8 +113,8 @@ export class EnvelopeIdleAnimation {
           {
             scaleX: shadowCfg.idleScaleXMin,
             opacity: shadowCfg.idleOpacityMax,
-            duration: idle.y.duration,
-            ease: idle.y.ease,
+            duration: idle.yDuration,
+            ease: idle.yEase,
             yoyo: true,
             repeat: -1
           }
@@ -111,7 +125,7 @@ export class EnvelopeIdleAnimation {
       const initialShadowTween = gsap.to(shadow, {
         scaleX: shadowCfg.idleScaleXMax,
         opacity: shadowCfg.idleOpacityMin,
-        duration: idle.y.duration / 2,
+        duration: idle.yDuration / 2,
         ease: 'sine.out',
         onComplete: startShadowLoop
       });

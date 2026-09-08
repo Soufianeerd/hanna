@@ -86,10 +86,10 @@ class CDPClient {
 }
 
 async function runFullFlowVerification() {
-  console.log('Starting headless Chrome for Full Flow Verification...');
+  console.log('Starting headless Chrome for Full Flow Visual Verification...');
   const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
     '--headless',
-    '--remote-debugging-port=9224',
+    '--remote-debugging-port=9225',
     '--disable-gpu',
     '--no-first-run',
     '--no-default-browser-check'
@@ -98,7 +98,7 @@ async function runFullFlowVerification() {
   await sleep(1500);
 
   try {
-    const newTargetRes = await fetch('http://127.0.0.1:9224/json/new?about:blank', { method: 'PUT' });
+    const newTargetRes = await fetch('http://127.0.0.1:9225/json/new?about:blank', { method: 'PUT' });
     const target = await newTargetRes.json();
     const cdp = new CDPClient(target.webSocketDebuggerUrl);
     await cdp.connect();
@@ -115,65 +115,67 @@ async function runFullFlowVerification() {
     console.log('1. Navigating to http://localhost:5173/ ...');
     await cdp.send('Page.navigate', { url: 'http://localhost:5173/' });
 
-    // Wait for entrance and idle floating (total 3.2s)
-    await sleep(3200);
-    const stateAtIdle = await cdp.eval('window.__STATE__ || document.querySelector(".envelope-object-3d")?.classList.contains("is-interactive")');
-    console.log('   Envelope reached IDLE (is-interactive:', stateAtIdle, ')');
-    await cdp.screenshot('01_idle.png');
+    // Attente de l'entrée et stabilisation en idle (~3.2s)
+    await sleep(3400);
+    const isInteractive = await cdp.eval('document.querySelector(".envelope-object-3d")?.classList.contains("is-interactive")');
+    console.log('   Enveloppe en état IDLE (is-interactive:', isInteractive, ')');
 
-    // Click envelope to trigger flip
-    console.log('2. Clicking envelope to trigger 180° flip...');
-    const clickResult = await cdp.click('#envelope-object-3d');
-    console.log('   Click result:', clickResult);
+    // 01_idle_float_top.png
+    console.log('2. Capturing 01_idle_float_top.png...');
+    await sleep(750);
+    await cdp.screenshot('01_idle_float_top.png');
 
-    // Wait for flip to reach 180° (neutralize 0.18s + flip 0.85s = ~1.03s -> capture at 1.05s)
-    await sleep(950);
-    console.log('3. Capturing back closed with wax seal...');
-    await cdp.screenshot('02_back_seal.png');
+    // 02_idle_float_bottom.png
+    console.log('3. Capturing 02_idle_float_bottom.png (demi-cycle plus tard)...');
+    await sleep(1500);
+    await cdp.screenshot('02_idle_float_bottom.png');
 
-    // Wait for seal animation + open switch (pause 0.14s + seal 0.35s + switch 0.14s = 0.63s -> total 1.0s from back)
+    // Clic pour déclencher la séquence
+    console.log('4. Clicking envelope to trigger flip sequence...');
+    await cdp.click('#envelope-object-3d');
+
+    // 03_flip_90.png (stabilisation 140ms + mi-parcours du flip 1.35s / 2 = ~675ms -> total ~815ms)
+    await sleep(815);
+    console.log('5. Capturing 03_flip_90.png (tranche / trois-quarts)...');
+    await cdp.screenshot('03_flip_90.png');
+
+    // 04_back.png (flip complété à 180° avec sceau visible, pause contemplative 260ms)
+    await sleep(700);
+    console.log('6. Capturing 04_back.png (dos avec sceau)...');
+    await cdp.screenshot('04_back.png');
+
+    // 05_open.png (animation sceau + bascule immédiate vers enveloppe ouverte, 0 saut de corps)
     await sleep(650);
-    console.log('4. Capturing open envelope & pocket ready...');
-    await cdp.screenshot('03_open_envelope.png');
+    console.log('7. Capturing 05_open.png (assemblée ouverte avec rabat vers le haut)...');
+    await cdp.screenshot('05_open.png');
 
-    // Card extracting - mid pivot (P15/P16, ~0.45s into extraction)
-    await sleep(450);
-    console.log('5. Capturing card pivot mid-extraction...');
-    await cdp.screenshot('04_card_pivot.png');
+    // 06_extraction_mid.png (extraction continue P16-P20, ~1.4s plus tard)
+    await sleep(1400);
+    console.log('8. Capturing 06_extraction_mid.png (extraction continue P16-P20)...');
+    await cdp.screenshot('06_extraction_mid.png');
 
-    // Card extracting - vertical rise (P20/P21, ~0.60s later)
-    await sleep(600);
-    console.log('6. Capturing card vertical rise...');
-    await cdp.screenshot('05_card_rise.png');
+    // 07_card_ready_html.png (attente fin extraction 1.45s + crossfade 220ms + stabilisation 400ms = 2100ms)
+    await sleep(2100);
+    console.log('9. Capturing 07_card_ready_html.png (carte HTML avec Bismillah, titre, date, adresse cliquable, RSVP intégré)...');
+    await cdp.screenshot('07_card_ready_html.png');
 
-    // Card reaching P26 center and CARD_READY (~0.85s later)
-    await sleep(850);
-    console.log('7. Capturing CARD_READY with RSVP panel & address hotspot...');
-    await cdp.screenshot('06_card_ready.png');
-
-    // Select "Présent(e)" option
-    console.log('8. Selecting RSVP option: "Présent(e)"...');
-    await cdp.click('.rsvp-opt-btn[data-choice="PRESENT"]');
+    // Test de l'interaction RSVP : clic sur "Présent(e)"
+    console.log('10. Selecting RSVP option: "Présent(e)"...');
+    await cdp.click('.rsvp-choice-btn[data-choice="PRESENT"]');
     await sleep(200);
-    await cdp.screenshot('07_rsvp_selected.png');
 
-    // Click "Valider ma réponse"
-    console.log('9. Clicking "Valider ma réponse"...');
-    await cdp.click('#rsvp-submit');
+    // Clic sur "Valider ma réponse"
+    console.log('11. Clicking "Valider ma réponse"...');
+    await cdp.click('#rsvp-validate-btn');
 
-    // Card taking momentum and sending upwards (anticipation 0.14s + 0.35s departure)
-    await sleep(350);
-    console.log('10. Capturing card departure upwards...');
-    await cdp.screenshot('08_card_sending.png');
-
-    // Confirmation message (departure completes 0.92s + delay 0.20s + fade 0.58s = ~1.3s)
-    await sleep(1300);
-    console.log('11. Capturing final confirmation message...');
+    // Attente du départ de la carte interactive vers le haut et du message de confirmation
+    await sleep(1500);
+    const confirmationText = await cdp.eval('document.querySelector("#confirmation-text")?.innerText');
+    console.log('   Confirmation message text:', confirmationText);
     await cdp.screenshot('09_confirmation.png');
 
-    // Check localStorage value
-    const rsvpStorage = await cdp.eval('localStorage.getItem("hanna-rsvp")');
-    console.log('   localStorage "hanna-rsvp":', rsvpStorage);
+    const storedRsvp = await cdp.eval('localStorage.getItem("hanna-rsvp")');
+    console.log('   RSVP saved in localStorage via rsvpService:', storedRsvp);
 
     // Test Mobile 390x844
     console.log('\n--- Mobile 390x844 Verification ---');
@@ -183,17 +185,20 @@ async function runFullFlowVerification() {
       deviceScaleFactor: 2,
       mobile: true
     });
-    // Clear storage and reload
+    // Réinitialiser storage et recharger
     await cdp.eval('localStorage.removeItem("hanna-rsvp")');
     await cdp.send('Page.navigate', { url: 'http://localhost:5173/' });
-    await sleep(3200);
+    await sleep(3400);
+    console.log('   Mobile: clicking envelope...');
     await cdp.click('#envelope-object-3d');
-    // Wait for flip + extraction to finish (~3.7s)
-    await sleep(4000);
-    console.log('12. Capturing Mobile 390x844 CARD_READY...');
-    await cdp.screenshot('10_mobile_card_ready.png');
+    // Attente de l'ouverture et de la fin de l'extraction (~5.2s)
+    await sleep(5500);
 
-    console.log('\n✓ Full flow execution and captures completed successfully!');
+    // 08_rsvp_mobile.png
+    console.log('12. Capturing 08_rsvp_mobile.png (Mobile 390x844 CARD_READY sans chevauchement)...');
+    await cdp.screenshot('08_rsvp_mobile.png');
+
+    console.log('\n✓ All screenshots captured successfully in .dev/captures !');
     if (cdp.errors.length > 0) {
       console.warn('Console errors detected:', cdp.errors);
     } else {
