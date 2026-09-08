@@ -45,18 +45,18 @@ export const MOTION = {
     idleScaleXMax: 1.04            // Quand l'enveloppe monte
   },
 
-  // Stabilisation avant flip
+  // Stabilisation avant flip (0.22s + pause 0.08s)
   neutralize: {
-    duration: 0.18,
+    duration: 0.22,
     ease: 'power2.out',
-    pauseBeforeFlip: 0.14          // 120 à 160ms de respiration naturelle
+    pauseBeforeFlip: 0.08
   },
 
-  // Retournement 3D (Flip 180°) ralenti et soyeux
+  // Retournement 3D (Flip 180°) ralenti (1.55s)
   flip: {
-    duration: 1.35,                // 1.25 à 1.45s (par défaut 1.35s)
+    duration: 1.55,                // Exactement 1.55s
     ease: 'power2.inOut',
-    backPauseDuration: 0.26        // 220 à 300ms de présence du dos avec sceau
+    backPauseDuration: 0.28        // Exactement 0.28s avec sceau visible
   },
 
   // Disparition du sceau
@@ -75,13 +75,13 @@ export const MOTION = {
     pauseBeforeExtraction: 0.10
   },
 
-  // Extraction continue de la carte (un seul tween Catmull-Rom)
+  // Extraction continue de la carte (durée 3.0s)
   extraction: {
-    duration: 2.85,                // 2.6 à 3.1s (base 2.85s)
-    ease: 'power1.inOut',
-    envelopeFadeDuration: 0.65,    // 0.55 à 0.70s
-    envelopeFadeY: 25,
-    envelopeFadeScale: 0.96
+    duration: 3.0,                 // Exactement 3.0s
+    ease: 'none',
+    envelopeFadeDuration: 0.65,    // Exactement 0.65s
+    envelopeFadeY: 50,             // y: 0 -> +50px
+    envelopeFadeScale: 0.94        // scale: 1 -> 0.94
   },
 
   // Transition de la carte PNG vers la carte interactive HTML/CSS

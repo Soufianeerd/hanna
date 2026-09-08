@@ -1,7 +1,8 @@
 /**
- * Animation d'extraction continue de la carte
- * Utilise un tween unique de progression (progress 0..1) et l'interpolateur spline Catmull-Rom.
- * Supprime tous les arrêts ou paliers pour un mouvement gracieux, continu et aérien.
+ * Animation d'extraction continue de la carte d'invitation (3.0s, sans zigzag)
+ * Utilise un tween unique de progression (progress 0 -> 1) et l'interpolateur continu.
+ * L'enveloppe recule vers le bas (y: +50px, scale: 0.94, opacity: 0) dès que la carte est libérée.
+ * La carte originale carteInvitation.png reste intacte et visible au centre.
  */
 
 import gsap from 'gsap';
@@ -19,26 +20,36 @@ export class CardExtractionAnimation {
   play({ onCardReady } = {}) {
     this.kill();
 
-    const { card, pocket, openEnvelope, shadow, interactiveCard } = this.scene.elements;
+    const { 
+      card, 
+      cardClippingLayer, 
+      openScene, 
+      openBackground, 
+      openForeground, 
+      shadow, 
+      addressHotspot, 
+      rsvpOverlay 
+    } = this.scene.elements;
+
     const cfg = MOTION.extraction;
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     this.stateManager.setState(EXPERIENCE_STATE.CARD_EXTRACTING);
 
-    const proxy = { progress: 0 };
-    let envelopeFadingStarted = false;
+    const extractionProgress = { value: 0 };
+    let isFreedTriggered = false;
 
     this.timeline = gsap.timeline();
 
-    const duration = isReduced ? 1.2 : cfg.duration; // 2.85s
+    const duration = isReduced ? 1.2 : cfg.duration; // 3.0s
 
-    // 1. Tween unique continu d'extraction
-    this.timeline.to(proxy, {
-      progress: 1,
+    // 1. Tween unique de progression continue
+    this.timeline.to(extractionProgress, {
+      value: 1,
       duration: duration,
       ease: cfg.ease,
       onUpdate: () => {
-        const pose = sampleCardPose(proxy.progress);
+        const pose = sampleCardPose(extractionProgress.value);
 
         if (card) {
           gsap.set(card, {
@@ -47,23 +58,28 @@ export class CardExtractionAnimation {
             rotation: pose.rotation,
             scale: pose.scale
           });
-
-          // Seuil de libération physique à P24
-          if (pose.isFreed && card.style.zIndex !== '50') {
-            card.style.zIndex = '50';
-          }
         }
 
-        // Effacement de l'enveloppe pendant la phase de recentrage (progress >= 0.74)
-        if (proxy.progress >= 0.74 && !envelopeFadingStarted) {
-          envelopeFadingStarted = true;
-          const envelopeLayers = [openEnvelope, pocket].filter(Boolean);
+        // Seuil de libération physique à progress >= 0.82
+        if (pose.isFreed && !isFreedTriggered) {
+          isFreedTriggered = true;
+
+          // A. La carte passe au premier plan au-dessus du foreground
+          if (card) {
+            card.style.zIndex = '50';
+          }
+          if (cardClippingLayer) {
+            cardClippingLayer.style.clipPath = 'none';
+          }
+
+          // B. L'enveloppe entière recule vers le bas et s'efface en douceur
+          const envelopeLayers = [openBackground, openForeground].filter(Boolean);
           if (envelopeLayers.length > 0) {
             gsap.to(envelopeLayers, {
+              y: cfg.envelopeFadeY,        // +50px
+              scale: cfg.envelopeFadeScale, // 0.94
               opacity: 0,
-              scale: cfg.envelopeFadeScale,
-              y: cfg.envelopeFadeY,
-              duration: cfg.envelopeFadeDuration,
+              duration: cfg.envelopeFadeDuration, // 0.65s
               ease: 'power2.inOut',
               onComplete: () => {
                 envelopeLayers.forEach((el) => {
@@ -72,6 +88,7 @@ export class CardExtractionAnimation {
               }
             });
           }
+
           if (shadow) {
             gsap.to(shadow, {
               opacity: 0,
@@ -86,31 +103,24 @@ export class CardExtractionAnimation {
       }
     });
 
-    // 2. Transition fluide Carte Image -> Carte Interactive HTML/CSS à la fin de P26
+    // 2. Fin d'extraction : la carte originale est centrée et prête pour l'interaction
     this.timeline.add(() => {
       this.stateManager.setState(EXPERIENCE_STATE.CARD_READY);
 
-      if (interactiveCard && card) {
-        // Superposition exacte de la carte interactive
-        gsap.set(interactiveCard, {
-          display: 'flex',
-          opacity: 0
-        });
+      // Activation du hotspot de l'adresse
+      if (addressHotspot) {
+        addressHotspot.style.pointerEvents = 'auto';
+      }
 
-        // Crossfade imperceptible (220ms)
-        gsap.to(card, {
-          opacity: 0,
-          duration: MOTION.cardTransition.crossfadeDuration,
-          ease: 'power1.out',
-          onComplete: () => {
-            card.style.display = 'none';
-          }
-        });
-
-        gsap.to(interactiveCard, {
+      // Apparition délicate du RSVP transparent sur le papier
+      if (rsvpOverlay) {
+        gsap.to(rsvpOverlay, {
           opacity: 1,
-          duration: MOTION.cardTransition.crossfadeDuration,
-          ease: 'power1.in',
+          duration: 0.35,
+          ease: 'power1.out',
+          onStart: () => {
+            rsvpOverlay.style.pointerEvents = 'auto';
+          },
           onComplete: () => {
             if (onCardReady) onCardReady();
           }
