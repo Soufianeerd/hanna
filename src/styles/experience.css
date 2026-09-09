@@ -443,9 +443,9 @@ body.hanna-experience-active {
 .card-rsvp-overlay {
   position: absolute;
   top: 75.0%;
-  left: 54%;
+  left: 54.5%;
   transform: translateX(-50%);
-  width: 50%;
+  width: 53%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -462,18 +462,17 @@ body.hanna-experience-active {
   display: none !important; /* Mot RSVP supprimé selon la demande */
 }
 
-/* Ligne des inputs Prénom et Nom */
+/* Ligne des inputs Prénom et E-mail */
 .rsvp-names-row {
   display: flex;
-  gap: 12px;
+  gap: 5%;
   width: 100%;
   justify-content: space-between;
   margin-bottom: 8px;
 }
 
-.rsvp-input-name {
-  flex: 1;
-  width: 47%;
+.rsvp-input-firstname,
+.rsvp-input-email {
   background: transparent;
   border: none;
   border-bottom: 1px solid rgba(21, 80, 57, 0.50);
@@ -482,7 +481,7 @@ body.hanna-experience-active {
   box-shadow: none;
   color: #155039;
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
-  font-size: 16px; /* Minimum 16px pour empêcher le zoom automatique Safari iOS */
+  font-size: 16px; /* Minimum 16px strict pour empêcher le zoom automatique Safari iOS */
   font-weight: 500;
   text-align: center;
   padding: 3px 0 4px 0;
@@ -490,14 +489,29 @@ body.hanna-experience-active {
   -webkit-tap-highlight-color: transparent;
 }
 
-.rsvp-input-name::placeholder {
+/* Prénom : 35% de la ligne */
+.rsvp-input-firstname {
+  width: 35%;
+  flex: 0 0 35%;
+}
+
+/* E-mail : 60% de la ligne pour permettre les adresses plus longues */
+.rsvp-input-email {
+  width: 60%;
+  flex: 0 0 60%;
+  text-overflow: ellipsis;
+}
+
+.rsvp-input-firstname::placeholder,
+.rsvp-input-email::placeholder {
   color: rgba(21, 80, 57, 0.62);
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
   font-style: italic;
   opacity: 1;
 }
 
-.rsvp-input-name:focus {
+.rsvp-input-firstname:focus,
+.rsvp-input-email:focus {
   border-bottom-color: #155039;
   border-bottom-width: 1.5px;
   outline: none;

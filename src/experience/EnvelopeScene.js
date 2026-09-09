@@ -167,11 +167,11 @@ export class EnvelopeScene {
 
                     <!-- Formulaire discret dans l'espace vide ivoire bas-centre (Sans titre RSVP) -->
                     <div class="card-rsvp-overlay" id="card-rsvp-overlay">
-                      <!-- Champs Prénom et Nom -->
+                      <!-- Champs Prénom et E-mail -->
                       <div class="rsvp-names-row">
                         <input
                           id="guest-first-name"
-                          class="rsvp-input-name"
+                          class="rsvp-input-firstname"
                           type="text"
                           autocomplete="given-name"
                           maxlength="60"
@@ -179,13 +179,14 @@ export class EnvelopeScene {
                           aria-label="Prénom"
                         />
                         <input
-                          id="guest-last-name"
-                          class="rsvp-input-name"
-                          type="text"
-                          autocomplete="family-name"
-                          maxlength="60"
-                          placeholder="Nom"
-                          aria-label="Nom"
+                          id="guest-email"
+                          class="rsvp-input-email"
+                          type="email"
+                          autocomplete="email"
+                          inputmode="email"
+                          maxlength="120"
+                          placeholder="E-mail"
+                          aria-label="Adresse e-mail"
                         />
                       </div>
 
@@ -261,7 +262,7 @@ export class EnvelopeScene {
 
       // RSVP
       guestFirstName: this.container.querySelector('#guest-first-name'),
-      guestLastName: this.container.querySelector('#guest-last-name'),
+      guestEmail: this.container.querySelector('#guest-email'),
       rsvpSubmit: this.container.querySelector('#rsvp-btn-submit'),
       rsvpStatusMsg: this.container.querySelector('#rsvp-feedback-msg'),
       rsvpOptionBtns: this.container.querySelectorAll('.rsvp-btn-option'),
@@ -403,10 +404,16 @@ export class EnvelopeScene {
       e.stopPropagation();
 
       const firstName = (this.elements.guestFirstName?.value || '').trim();
-      const lastName = (this.elements.guestLastName?.value || '').trim();
+      const email = (this.elements.guestEmail?.value || '').trim();
 
-      if (!firstName || !lastName) {
-        this.showRsvpError('Merci de renseigner votre nom et votre prénom.');
+      if (!firstName) {
+        this.showRsvpError('Merci de renseigner votre prénom.');
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        this.showRsvpError('Merci de renseigner une adresse e-mail valide.');
         return;
       }
 
@@ -419,7 +426,7 @@ export class EnvelopeScene {
       if (this.onRsvpSubmit) {
         this.onRsvpSubmit({
           firstName,
-          lastName,
+          email,
           status: this.selectedChoice
         });
       }
@@ -427,7 +434,7 @@ export class EnvelopeScene {
 
     // Effacer l'erreur à la saisie dans les inputs
     this.elements.guestFirstName?.addEventListener('input', () => this.clearRsvpError());
-    this.elements.guestLastName?.addEventListener('input', () => this.clearRsvpError());
+    this.elements.guestEmail?.addEventListener('input', () => this.clearRsvpError());
 
     // 4. Bouton Itinéraire (stopPropagation)
     this.elements.routeButton?.addEventListener('click', (e) => {
@@ -492,32 +499,13 @@ export class EnvelopeScene {
   }
 
   /**
-   * Configure les informations d'invité obtenues depuis l'API ou le mode démo
-   * @param {{ firstName?: string, lastName?: string, rsvp?: string }|null} guest
-   * @param {boolean} isProductionWithoutCode
+   * Initialise les boutons RSVP et autorise la soumission
    */
-  configureGuest(guest, isProductionWithoutCode = false) {
-    this.guestInfo = guest;
-    this.isRsvpDisabledForDemo = false; // Le bouton reste toujours actif pour permettre le mode démo
-
+  configureGuest() {
     if (this.elements.rsvpSubmit) {
       this.elements.rsvpSubmit.disabled = false;
       this.elements.rsvpSubmit.style.pointerEvents = 'auto';
       this.elements.rsvpSubmit.style.cursor = 'pointer';
-    }
-
-    if (guest) {
-      // Préremplissage Prénom et Nom si existants
-      if (guest.firstName && this.elements.guestFirstName) {
-        this.elements.guestFirstName.value = guest.firstName;
-      }
-      if (guest.lastName && this.elements.guestLastName) {
-        this.elements.guestLastName.value = guest.lastName;
-      }
-      // Pré-sélection de la réponse existante si déjà soumise
-      if (guest.rsvp === 'PRESENT' || guest.rsvp === 'ABSENT') {
-        this.selectRsvpChoice(guest.rsvp);
-      }
     }
   }
 

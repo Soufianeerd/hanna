@@ -41,7 +41,7 @@ import { EnvelopeFlipAnimation } from '../animation/envelopeFlip.js';
 import { CardExtractionAnimation } from '../animation/cardExtraction.js';
 import { CardSendAnimation } from '../animation/cardSend.js';
 import { InvitationAudioManager } from '../audio/invitationAudio.js';
-import { getGuest, submitRsvp, submitDemoRsvp, RSVP_ENDPOINT } from '../services/rsvpService.js';
+import { submitRsvp } from '../services/rsvpService.js';
 
 export class HannaExperience {
   constructor(container, options = {}) {
@@ -61,11 +61,6 @@ export class HannaExperience {
     this.audioManager = null;
     this.devPanelEl = null;
     this.hasOpened = false;
-
-    // Récupération du code invité dans l'URL (?code=HN-XXXXXXXXXXXX)
-    const urlParams = new URLSearchParams(window.location.search);
-    this.guestCode = (urlParams.get('code') || '').trim();
-    this.guest = null;
 
     if (typeof window !== 'undefined') {
       window.__hannaExperience = this;
@@ -117,8 +112,8 @@ export class HannaExperience {
       this.handleStateChange(newState);
     });
 
-    // 6. Chargement des informations de l'invité
-    await this.resolveGuestInformation();
+    // 6. Initialisation de la scène RSVP
+    this.scene.configureGuest();
 
     // 7. Panneau DEV motion optionnel
     if (this.options.isDevMotion) {
@@ -142,24 +137,6 @@ export class HannaExperience {
       // 3. Arrivée de l'enveloppe depuis le bas
       this.startExperience();
     });
-  }
-
-  async resolveGuestInformation() {
-    if (this.guestCode) {
-      const res = await getGuest(this.guestCode);
-      if (res && res.ok && res.guest) {
-        this.guest = res.guest;
-        this.scene.configureGuest(this.guest, false);
-      } else {
-        // Code invalide ou absent du sheet
-        const isProdWithoutCode = !import.meta.env.DEV;
-        this.scene.configureGuest(null, isProdWithoutCode);
-      }
-    } else {
-      // Aucun code dans l'URL
-      const isProdWithoutCode = !import.meta.env.DEV;
-      this.scene.configureGuest(null, isProdWithoutCode);
-    }
   }
 
   preloadAssets() {
@@ -240,29 +217,15 @@ export class HannaExperience {
     });
   }
 
-  async handleRsvpSubmit({ firstName, lastName, status }) {
+  async handleRsvpSubmit({ firstName, email, status }) {
     if (!this.stateManager.is(EXPERIENCE_STATE.CARD_READY)) return;
 
     this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUBMITTING);
     this.scene.setRsvpButtonsDisabled(true);
 
-    let res;
-    if (this.guestCode) {
-      // Soumission avec code invité -> Google Apps Script
-      const payload = {
-        code: this.guestCode,
-        firstName,
-        lastName,
-        status,
-        submittedAt: new Date().toISOString()
-      };
-      res = await submitRsvp(payload);
-    } else {
-      // Mode démo sans code invité (ne touche pas au Google Sheet, fluidité garantie)
-      res = await submitDemoRsvp({ firstName, lastName, status });
-    }
+    const res = await submitRsvp({ firstName, email, status });
 
-    if (res.ok) {
+    if (res && res.success) {
       this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);
       this.scene.displayConfirmation(status);
 
@@ -270,7 +233,7 @@ export class HannaExperience {
       this.send.play();
     } else {
       this.stateManager.setState(EXPERIENCE_STATE.CARD_READY);
-      this.scene.showRsvpError(res.message || 'Une erreur est survenue. Merci de réessayer.');
+      this.scene.showRsvpError(res?.message || 'Une erreur est survenue. Merci de réessayer.');
       this.scene.setRsvpButtonsDisabled(false);
     }
   }

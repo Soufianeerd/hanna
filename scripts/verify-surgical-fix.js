@@ -259,14 +259,14 @@ async function verifySurgicalFix() {
       await cdp.screenshot('06_route_button.png');
     }
 
-    // Saisie de Prénom et Nom
-    console.log('   Saisie de Prénom (Sarah) et Nom (Martin)...');
+    // Saisie de Prénom et E-mail
+    console.log('   Saisie de Prénom (Sarah) et E-mail (sarah.martin@example.com)...');
     await cdp.eval(`
       (() => {
         const fn = document.querySelector('#guest-first-name');
-        const ln = document.querySelector('#guest-last-name');
+        const em = document.querySelector('#guest-email');
         if (fn) fn.value = 'Sarah';
-        if (ln) ln.value = 'Martin';
+        if (em) em.value = 'sarah.martin@example.com';
       })()
     `);
     await sleep(200);
