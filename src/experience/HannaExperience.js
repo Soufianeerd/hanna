@@ -223,17 +223,22 @@ export class HannaExperience {
     this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUBMITTING);
     this.scene.setRsvpButtonsDisabled(true);
 
-    const res = await submitRsvp({ firstName, email, status });
+    try {
+      const res = await submitRsvp({ firstName, email, status });
 
-    if (res && res.success) {
-      this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);
-      this.scene.displayConfirmation(status);
+      if (res && res.success) {
+        this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);
+        this.scene.displayConfirmation(status);
 
-      // Animation d'envoi de la carte vers le haut
-      this.send.play();
-    } else {
+        // Animation d'envoi de la carte vers le haut
+        this.send.play();
+        return;
+      }
+      throw new Error(res?.message || 'Impossible d’enregistrer la réponse.');
+    } catch (err) {
+      console.error('[HannaExperience] Erreur RSVP:', err);
       this.stateManager.setState(EXPERIENCE_STATE.CARD_READY);
-      this.scene.showRsvpError(res?.message || 'Une erreur est survenue. Merci de réessayer.');
+      this.scene.showRsvpError('Une erreur est survenue. Merci de réessayer.');
       this.scene.setRsvpButtonsDisabled(false);
     }
   }
