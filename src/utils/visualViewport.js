@@ -42,9 +42,16 @@ export function computeFinalCardRect() {
   let targetHeight;
 
   if (isMobile) {
-    // Mobile prioritaire (390×844 etc.) : 100% de la largeur disponible (décor touche les bords)
-    targetWidth = Math.round(vv.width);
-    targetHeight = Math.round(targetWidth / ratio);
+    // Mobile portrait (390×844 etc.) : l'invitation occupe toute la hauteur visible
+    // sans déformation de ratio ni grand vide inférieur
+    targetHeight = Math.round(vv.height);
+    targetWidth = Math.round(targetHeight * ratio);
+
+    // Si la largeur résultante est inférieure à la largeur écran, caler sur la largeur
+    if (targetWidth < vv.width) {
+      targetWidth = Math.round(vv.width);
+      targetHeight = Math.round(targetWidth / ratio);
+    }
   } else {
     // Desktop : centré avec proportions harmonieuses
     const maxDesktopHeight = Math.min(vv.height * 0.94, 900);
@@ -54,7 +61,7 @@ export function computeFinalCardRect() {
     targetWidth = targetHeight * ratio;
   }
 
-  // Positionnement dans le Visual Viewport visible
+  // Positionnement centré dans la zone visible
   const targetLeft = vv.offsetLeft + (vv.width - targetWidth) / 2;
   const targetTop = targetHeight <= vv.height
     ? vv.offsetTop + (vv.height - targetHeight) / 2
@@ -67,3 +74,4 @@ export function computeFinalCardRect() {
     height: Math.round(targetHeight)
   };
 }
+

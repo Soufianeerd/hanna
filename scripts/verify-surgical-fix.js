@@ -207,8 +207,27 @@ async function verifySurgicalFix() {
       if (state === 'CARD_READY') break;
       await sleep(100);
     }
-    await sleep(300); // Stabilisation finale
+    await sleep(400); // Stabilisation finale
     await cdp.saveVideoFrame(frame++, '14_card_ready_top');
+
+    // Vérification géométrie CARD_READY (hauteur plein écran sans grand vide)
+    const cardGeom = await cdp.eval(`
+      (() => {
+        const card = document.querySelector('#invitation-card-wrapper');
+        const rect = card ? card.getBoundingClientRect() : null;
+        return {
+          width: rect ? Math.round(rect.width) : 0,
+          height: rect ? Math.round(rect.height) : 0,
+          top: rect ? Math.round(rect.top) : 0,
+          left: rect ? Math.round(rect.left) : 0,
+          windowHeight: window.innerHeight,
+          windowWidth: window.innerWidth
+        };
+      })()
+    `);
+    console.log('   Géométrie carte à CARD_READY :', JSON.stringify(cardGeom));
+    const cardOccupiesFullHeight = cardGeom.height >= cardGeom.windowHeight * 0.98;
+    console.log(`   La carte occupe la quasi-totalité de la hauteur (${cardGeom.height}px / ${cardGeom.windowHeight}px) : ${cardOccupiesFullHeight ? 'OUI' : 'NON'}`);
 
     // 04_fullscreen_mobile_top.png (vue haute de la page plein écran avec motifs, Bismillah, Salma...)
     console.log('   Capture 04_fullscreen_mobile_top.png...');
@@ -228,7 +247,7 @@ async function verifySurgicalFix() {
     await cdp.screenshot('05_fullscreen_mobile_bottom.png');
     await cdp.saveVideoFrame(frame++, '15_fullscreen_mobile_bottom');
 
-    // Scroll back to center/form
+    // Scroll back to top
     await cdp.eval(`
       (() => {
         const page = document.querySelector('#invitation-fullscreen-page');
@@ -259,6 +278,66 @@ async function verifySurgicalFix() {
       await cdp.screenshot('06_route_button.png');
     }
 
+    // Vérification des champs et placeholders
+    const formCheck = await cdp.eval(`
+      (() => {
+        const fn = document.querySelector('#guest-first-name');
+        const em = document.querySelector('#guest-email');
+        const presentBtn = document.querySelector('.rsvp-btn-option[data-choice="PRESENT"]');
+        const absentBtn = document.querySelector('.rsvp-btn-option[data-choice="ABSENT"]');
+        return {
+          fnPlaceholder: fn?.placeholder,
+          emPlaceholder: em?.placeholder,
+          presentSelectedDefault: presentBtn?.classList.contains('is-selected'),
+          absentSelectedDefault: absentBtn?.classList.contains('is-selected')
+        };
+      })()
+    `);
+    console.log('   Formulaire check :', JSON.stringify(formCheck));
+
+    // TEST CLAVIER VIRTUEL IPHONE (simulation resize visualViewport 844 -> 500)
+    console.log('   Test apparition clavier virtuel iOS (hauteur 844 -> 500px)...');
+    await cdp.eval(`
+      (() => {
+        const fn = document.querySelector('#guest-first-name');
+        if (fn) fn.focus();
+      })()
+    `);
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 390,
+      height: 500,
+      deviceScaleFactor: 2,
+      mobile: true
+    });
+    await sleep(350);
+
+    // Vérifier que la géométrie de la carte N'A PAS BOUGÉ
+    const cardGeomDuringKeyboard = await cdp.eval(`
+      (() => {
+        const card = document.querySelector('#invitation-card-wrapper');
+        const rect = card ? card.getBoundingClientRect() : null;
+        return {
+          width: rect ? Math.round(rect.width) : 0,
+          height: rect ? Math.round(rect.height) : 0,
+          top: rect ? Math.round(rect.top) : 0,
+          left: rect ? Math.round(rect.left) : 0
+        };
+      })()
+    `);
+    console.log('   Géométrie carte pendant clavier ouvert :', JSON.stringify(cardGeomDuringKeyboard));
+    const keyboardSafe = (cardGeomDuringKeyboard.width === cardGeom.width && cardGeomDuringKeyboard.height === cardGeom.height);
+    console.log(`   Géométrie carte strictement figée pendant le clavier : ${keyboardSafe ? 'OUI (PARFAIT)' : 'NON (ÉCHEC)'}`);
+
+    // Fermeture du clavier (retour 844px)
+    console.log('   Fermeture clavier virtuel iOS (retour 844px)...');
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 2,
+      mobile: true
+    });
+    await sleep(200);
+
     // Saisie de Prénom et E-mail
     console.log('   Saisie de Prénom (Sarah) et E-mail (sarah.martin@example.com)...');
     await cdp.eval(`
@@ -275,12 +354,31 @@ async function verifySurgicalFix() {
     console.log('7. Clic sur Présent(e)...');
     await cdp.click('.rsvp-btn-option[data-choice="PRESENT"]');
     await sleep(300);
+
+    // Vérifier le style du bouton sélectionné
+    const presentCheck = await cdp.eval(`
+      (() => {
+        const btn = document.querySelector('.rsvp-btn-option[data-choice="PRESENT"]');
+        const absent = document.querySelector('.rsvp-btn-option[data-choice="ABSENT"]');
+        const s = window.getComputedStyle(btn);
+        return {
+          presentSelected: btn.classList.contains('is-selected'),
+          absentSelected: absent.classList.contains('is-selected'),
+          borderWidth: s.borderWidth,
+          borderColor: s.borderColor,
+          fontWeight: s.fontWeight,
+          hasCheckmark: btn.textContent.includes('✓') || btn.textContent.includes('Validé')
+        };
+      })()
+    `);
+    console.log('   État Présent sélectionné :', JSON.stringify(presentCheck));
+
     console.log('   Capture 07_present_selected.png...');
     await cdp.screenshot('07_present_selected.png');
     await cdp.saveVideoFrame(frame++, '16_present_selected');
 
-    // 8. Clic Valider (test du mode démo sans code)
-    console.log('8. Clic sur Valider (validation démo fluide ~250ms)...');
+    // 8. Clic Valider
+    console.log('8. Clic sur Valider...');
     await cdp.click('#rsvp-btn-submit');
 
     // Attente de l'état COMPLETED

@@ -167,8 +167,8 @@ export class EnvelopeScene {
 
                     <!-- Formulaire discret dans l'espace vide ivoire bas-centre (Sans titre RSVP) -->
                     <div class="card-rsvp-overlay" id="card-rsvp-overlay">
-                      <!-- Champs Prénom et E-mail -->
-                      <div class="rsvp-names-row">
+                      <!-- Champ Prénom sur sa propre ligne -->
+                      <div class="rsvp-row-firstname">
                         <input
                           id="guest-first-name"
                           class="rsvp-input-firstname"
@@ -178,6 +178,10 @@ export class EnvelopeScene {
                           placeholder="Prénom"
                           aria-label="Prénom"
                         />
+                      </div>
+
+                      <!-- Champ Adresse e-mail sur sa propre ligne -->
+                      <div class="rsvp-row-email">
                         <input
                           id="guest-email"
                           class="rsvp-input-email"
@@ -185,12 +189,12 @@ export class EnvelopeScene {
                           autocomplete="email"
                           inputmode="email"
                           maxlength="120"
-                          placeholder="E-mail"
+                          placeholder="Adresse e-mail"
                           aria-label="Adresse e-mail"
                         />
                       </div>
 
-                      <!-- Choix Présence -->
+                      <!-- Choix Présence (Neutres par défaut, aucun choix coché) -->
                       <div class="rsvp-overlay-options" role="group" aria-label="Présence à l'événement">
                         <button type="button" class="rsvp-btn-option" data-choice="PRESENT" aria-pressed="false">Présent(e)</button>
                         <button type="button" class="rsvp-btn-option" data-choice="ABSENT" aria-pressed="false">Absent(e)</button>
@@ -436,6 +440,20 @@ export class EnvelopeScene {
     this.elements.guestFirstName?.addEventListener('input', () => this.clearRsvpError());
     this.elements.guestEmail?.addEventListener('input', () => this.clearRsvpError());
 
+    // Au focus d'un input, centrer doucement dans le viewport sans redimensionner l'invitation
+    const handleInputFocus = (e) => {
+      setTimeout(() => {
+        if (e.target && typeof e.target.scrollIntoView === 'function') {
+          e.target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 180);
+    };
+    this.elements.guestFirstName?.addEventListener('focus', handleInputFocus);
+    this.elements.guestEmail?.addEventListener('focus', handleInputFocus);
+
     // 4. Bouton Itinéraire (stopPropagation)
     this.elements.routeButton?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -604,20 +622,10 @@ export class EnvelopeScene {
     this.viewportWidth = window.innerWidth;
     this.viewportHeight = window.innerHeight;
 
-    // Si la carte est en état CARD_READY, son positionnement est géré par la géométrie fixed
+    // Si la carte est en état CARD_READY : la géométrie finale est strictement figée.
+    // Le clavier virtuel iOS Safari et les variations visualViewport ne doivent JAMAIS
+    // recalculer, modifier le ratio ou animer en GSAP la taille de l'artwork.
     if (this.isCardReadyState) {
-      if (this.elements.card) {
-        const targetRect = computeFinalCardRect();
-        this.finalCardGeometry = targetRect;
-        gsap.to(this.elements.card, {
-          left: targetRect.left,
-          top: targetRect.top,
-          width: targetRect.width,
-          height: targetRect.height,
-          duration: 0.25,
-          ease: 'power1.out'
-        });
-      }
       return;
     }
 

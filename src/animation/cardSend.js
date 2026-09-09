@@ -29,6 +29,19 @@ export class CardSendAnimation {
       }
     });
 
+    // Figer la géométrie actuelle exacte de la carte visible avant le départ
+    if (targetCard) {
+      const rect = targetCard.getBoundingClientRect();
+      const parentRect = targetCard.offsetParent ? targetCard.offsetParent.getBoundingClientRect() : { left: 0, top: 0 };
+      gsap.set(targetCard, {
+        position: 'absolute',
+        left: rect.left - parentRect.left,
+        top: rect.top - parentRect.top,
+        width: rect.width,
+        height: rect.height
+      });
+    }
+
     // 1. Disparition rapide des boutons d'interaction (RSVP + Itinéraire)
     const interactiveOverlays = [rsvpOverlay, routeButton].filter(Boolean);
     if (interactiveOverlays.length > 0) {
