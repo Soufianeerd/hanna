@@ -17,7 +17,7 @@ export class CardSendAnimation {
     this.kill();
 
     const targetCard = this.scene.elements.card;
-    const { rsvpOverlay, routeButton, fullscreenPage, confirmationMessage } = this.scene.elements;
+    const { rsvpOverlay, routeButton, actionsRow, fullscreenPage, confirmationMessage } = this.scene.elements;
     const cfg = MOTION.cardSend;
     const confCfg = MOTION.confirmation;
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -42,8 +42,8 @@ export class CardSendAnimation {
       });
     }
 
-    // 1. Disparition rapide des boutons d'interaction (RSVP + Itinéraire)
-    const interactiveOverlays = [rsvpOverlay, routeButton].filter(Boolean);
+    // 1. Disparition rapide des boutons d'interaction (RSVP + Itinéraire + Calendrier)
+    const interactiveOverlays = [rsvpOverlay, actionsRow, routeButton].filter(Boolean);
     if (interactiveOverlays.length > 0) {
       this.timeline.to(interactiveOverlays, {
         opacity: 0,

@@ -256,27 +256,45 @@ async function verifySurgicalFix() {
     `);
     await sleep(150);
 
-    // 06_route_button.png (zoom sur le bouton Itinéraire sous l'adresse)
-    console.log('   Capture 06_route_button.png...');
-    const btnRect = await cdp.eval(`
+    // 06_route_button.png (zoom sur les actions : Itinéraire · Ajouter au calendrier)
+    console.log('   Capture 06_route_button.png (Itinéraire · Ajouter au calendrier)...');
+    const actionsRect = await cdp.eval(`
       (() => {
-        const btn = document.querySelector('#card-route-button');
-        if (!btn) return null;
-        const r = btn.getBoundingClientRect();
+        const row = document.querySelector('#card-actions-row') || document.querySelector('#card-route-button');
+        if (!row) return null;
+        const r = row.getBoundingClientRect();
         return {
-          x: Math.max(0, r.left - 40),
-          y: Math.max(0, r.top - 40),
-          width: r.width + 80,
-          height: r.height + 80,
+          x: Math.max(0, r.left - 20),
+          y: Math.max(0, r.top - 20),
+          width: r.width + 40,
+          height: r.height + 40,
           scale: 1
         };
       })()
     `);
-    if (btnRect) {
-      await cdp.screenshot('06_route_button.png', btnRect);
+    if (actionsRect) {
+      await cdp.screenshot('06_route_button.png', actionsRect);
     } else {
       await cdp.screenshot('06_route_button.png');
     }
+
+    // Test du clic "Ajouter au calendrier"
+    console.log('   Test du clic sur « Ajouter au calendrier »...');
+    const calendarResult = await cdp.eval(`
+      (() => {
+        let downloadTriggered = false;
+        const origCreate = URL.createObjectURL;
+        URL.createObjectURL = (blob) => {
+          downloadTriggered = true;
+          return origCreate(blob);
+        };
+        const btn = document.querySelector('#card-calendar-button');
+        if (btn) btn.click();
+        URL.createObjectURL = origCreate;
+        return { downloadTriggered };
+      })()
+    `);
+    console.log('   Téléchargement calendrier .ics déclenché :', JSON.stringify(calendarResult));
 
     // Vérification des champs et placeholders
     const formCheck = await cdp.eval(`

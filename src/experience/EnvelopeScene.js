@@ -41,6 +41,7 @@ import { ASSETS } from '../config/assets.js';
 import { GEOMETRY, OPEN_ENVELOPE_GEOMETRY, PHYSICAL_ENVELOPE } from '../config/geometry.js';
 import { MOTION } from '../config/motion.js';
 import { computeFinalCardRect } from '../utils/visualViewport.js';
+import { downloadHannaCalendar } from '../utils/calendar.js';
 
 export class EnvelopeScene {
   constructor(container, { onOpenRequested, onRsvpSubmit, onMuteToggle, onStartGateTap } = {}) {
@@ -157,13 +158,20 @@ export class EnvelopeScene {
                        rel="noopener noreferrer" 
                        aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps"></a>
 
-                    <!-- Texte Itinéraire cliquable élégant et souligné sous le nom de la salle -->
-                    <a class="card-route-button" 
-                       id="card-route-button"
-                       href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" 
-                       target="_blank" 
-                       rel="noopener noreferrer" 
-                       aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps">Itinéraire</a>
+                    <!-- Actions discrètes sous la salle : Itinéraire · Ajouter au calendrier -->
+                    <div class="card-actions-row" id="card-actions-row">
+                      <a class="card-action-link card-route-button" 
+                         id="card-route-button"
+                         href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" 
+                         target="_blank" 
+                         rel="noopener noreferrer" 
+                         aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps">Itinéraire</a>
+                      <span class="card-actions-separator" aria-hidden="true">·</span>
+                      <button type="button" 
+                              class="card-action-link card-calendar-button" 
+                              id="card-calendar-button"
+                              aria-label="Ajouter l'événement au calendrier">Ajouter au calendrier</button>
+                    </div>
 
                     <!-- Formulaire discret dans l'espace vide ivoire bas-centre (Sans titre RSVP) -->
                     <div class="card-rsvp-overlay" id="card-rsvp-overlay">
@@ -261,6 +269,8 @@ export class EnvelopeScene {
       openForeground: this.container.querySelector('#open-envelope-foreground'),
       addressHotspot: this.container.querySelector('#card-address-hotspot'),
       routeButton: this.container.querySelector('#card-route-button'),
+      actionsRow: this.container.querySelector('#card-actions-row'),
+      calendarBtn: this.container.querySelector('#card-calendar-button'),
       rsvpOverlay: this.container.querySelector('#card-rsvp-overlay'),
       fullscreenPage: this.container.querySelector('#invitation-fullscreen-page'),
 
@@ -454,9 +464,14 @@ export class EnvelopeScene {
     this.elements.guestFirstName?.addEventListener('focus', handleInputFocus);
     this.elements.guestEmail?.addEventListener('focus', handleInputFocus);
 
-    // 4. Bouton Itinéraire (stopPropagation)
+    // 4. Actions Itinéraire & Calendrier (stopPropagation)
     this.elements.routeButton?.addEventListener('click', (e) => {
       e.stopPropagation();
+    });
+
+    this.elements.calendarBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      downloadHannaCalendar();
     });
 
     // 5. Bouton Audio Mute

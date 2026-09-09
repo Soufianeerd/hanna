@@ -28,6 +28,7 @@ export class CardPresentationAnimation {
       openForeground, 
       addressHotspot, 
       routeButton,
+      actionsRow,
       rsvpOverlay,
       fullscreenPage
     } = this.scene.elements;
@@ -170,14 +171,15 @@ export class CardPresentationAnimation {
           addressHotspot.style.pointerEvents = 'auto';
         }
 
-        // Révélation du bouton Itinéraire visible
-        if (routeButton) {
-          gsap.to(routeButton, {
+        // Révélation des actions visibles (Itinéraire · Ajouter au calendrier)
+        const actionsEl = actionsRow || routeButton;
+        if (actionsEl) {
+          gsap.to(actionsEl, {
             opacity: 1,
             duration: 0.35,
             ease: 'power1.out',
             onStart: () => {
-              routeButton.style.pointerEvents = 'auto';
+              actionsEl.style.pointerEvents = 'auto';
             }
           });
         }
