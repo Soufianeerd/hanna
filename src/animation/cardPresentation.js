@@ -162,6 +162,15 @@ export class CardPresentationAnimation {
         // Suppression définitive de tout look de carte flottante
         card.style.borderRadius = '0';
         card.style.boxShadow = 'none';
+        gsap.set(card, {
+          position: 'relative',
+          left: 'auto',
+          top: 'auto',
+          width: '100%',
+          maxWidth: '540px',
+          height: 'auto',
+          margin: '0 auto'
+        });
 
         // Position de scroll initiale en haut
         pageContainer.scrollTop = 0;

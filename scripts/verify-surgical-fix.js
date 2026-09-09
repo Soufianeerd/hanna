@@ -300,18 +300,23 @@ async function verifySurgicalFix() {
     const formCheck = await cdp.eval(`
       (() => {
         const fn = document.querySelector('#guest-first-name');
+        const ln = document.querySelector('#guest-last-name');
         const em = document.querySelector('#guest-email');
         const presentBtn = document.querySelector('.rsvp-btn-option[data-choice="PRESENT"]');
         const absentBtn = document.querySelector('.rsvp-btn-option[data-choice="ABSENT"]');
+        const submitBtn = document.querySelector('#rsvp-btn-submit');
+        const submitStyle = window.getComputedStyle(submitBtn);
         return {
           fnPlaceholder: fn?.placeholder,
+          lnPlaceholder: ln?.placeholder,
           emPlaceholder: em?.placeholder,
           presentSelectedDefault: presentBtn?.classList.contains('is-selected'),
-          absentSelectedDefault: absentBtn?.classList.contains('is-selected')
+          absentSelectedDefault: absentBtn?.classList.contains('is-selected'),
+          submitVisibleInitially: submitStyle.visibility !== 'hidden' && parseFloat(submitStyle.opacity) > 0
         };
       })()
     `);
-    console.log('   Formulaire check :', JSON.stringify(formCheck));
+    console.log('   Formulaire check (Nom + Valider caché initialement) :', JSON.stringify(formCheck));
 
     // TEST CLAVIER VIRTUEL IPHONE (simulation resize visualViewport 844 -> 500)
     console.log('   Test apparition clavier virtuel iOS (hauteur 844 -> 500px)...');
@@ -356,14 +361,16 @@ async function verifySurgicalFix() {
     });
     await sleep(200);
 
-    // Saisie de Prénom et E-mail
-    console.log('   Saisie de Prénom (Sarah) et E-mail (sarah.martin@example.com)...');
+    // Saisie de Prénom, Nom et E-mail (test payload Soufiane El Rhadi)
+    console.log('   Saisie de Prénom (Soufiane), Nom (El Rhadi) et E-mail (soufiane.erd@gmail.com)...');
     await cdp.eval(`
       (() => {
         const fn = document.querySelector('#guest-first-name');
+        const ln = document.querySelector('#guest-last-name');
         const em = document.querySelector('#guest-email');
-        if (fn) fn.value = 'Sarah';
-        if (em) em.value = 'sarah.martin@example.com';
+        if (fn) fn.value = 'Soufiane';
+        if (ln) ln.value = 'El Rhadi';
+        if (em) em.value = 'soufiane.erd@gmail.com';
       })()
     `);
     await sleep(200);
@@ -373,23 +380,26 @@ async function verifySurgicalFix() {
     await cdp.click('.rsvp-btn-option[data-choice="PRESENT"]');
     await sleep(300);
 
-    // Vérifier le style du bouton sélectionné
+    // Vérifier le style du bouton sélectionné et l'apparition de Valider
     const presentCheck = await cdp.eval(`
       (() => {
         const btn = document.querySelector('.rsvp-btn-option[data-choice="PRESENT"]');
         const absent = document.querySelector('.rsvp-btn-option[data-choice="ABSENT"]');
+        const submitBtn = document.querySelector('#rsvp-btn-submit');
         const s = window.getComputedStyle(btn);
+        const submitStyle = window.getComputedStyle(submitBtn);
         return {
           presentSelected: btn.classList.contains('is-selected'),
           absentSelected: absent.classList.contains('is-selected'),
           borderWidth: s.borderWidth,
           borderColor: s.borderColor,
           fontWeight: s.fontWeight,
-          hasCheckmark: btn.textContent.includes('✓') || btn.textContent.includes('Validé')
+          hasCheckmark: btn.textContent.includes('✓') || btn.textContent.includes('Validé'),
+          submitVisibleAfterChoice: submitStyle.visibility === 'visible' && parseFloat(submitStyle.opacity) > 0.5
         };
       })()
     `);
-    console.log('   État Présent sélectionné :', JSON.stringify(presentCheck));
+    console.log('   État Présent sélectionné + Valider révélé :', JSON.stringify(presentCheck));
 
     console.log('   Capture 07_present_selected.png...');
     await cdp.screenshot('07_present_selected.png');

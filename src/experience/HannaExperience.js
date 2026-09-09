@@ -217,14 +217,14 @@ export class HannaExperience {
     });
   }
 
-  async handleRsvpSubmit({ firstName, email, status }) {
+  async handleRsvpSubmit({ firstName, lastName, email, status }) {
     if (!this.stateManager.is(EXPERIENCE_STATE.CARD_READY)) return;
 
     this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUBMITTING);
     this.scene.setRsvpButtonsDisabled(true);
 
     try {
-      const res = await submitRsvp({ firstName, email, status });
+      const res = await submitRsvp({ firstName, lastName, email, status });
 
       if (res && res.success) {
         this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);

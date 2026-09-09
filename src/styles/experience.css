@@ -460,10 +460,10 @@ body.hanna-experience-active {
 /* 5. Formulaire discret dans l'espace libéré (aéré, élégant, sans boîte) */
 .card-rsvp-overlay {
   position: absolute;
-  top: 76.0%;
-  left: 63.5%;
+  top: 76.2%;
+  left: 54.0%;
   transform: translateX(-50%);
-  width: 41%;
+  width: 58%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -480,14 +480,23 @@ body.hanna-experience-active {
   display: none !important; /* Mot RSVP supprimé */
 }
 
-/* Lignes séparées : Prénom puis Adresse e-mail */
-.rsvp-row-firstname {
-  width: 100%;
+/* Ligne Identité : Prénom + Nom sur la même ligne */
+.rsvp-row-identity {
   display: flex;
+  width: 100%;
+  gap: 8%;
+  align-items: center;
   justify-content: center;
   margin-bottom: 11px;
 }
 
+.rsvp-input-firstname,
+.rsvp-input-lastname {
+  width: 46%;
+  flex: 0 0 46%;
+}
+
+/* Ligne Adresse e-mail en dessous */
 .rsvp-row-email {
   width: 100%;
   display: flex;
@@ -495,7 +504,13 @@ body.hanna-experience-active {
   margin-bottom: 14px;
 }
 
+.rsvp-input-email {
+  width: 92%;
+  text-overflow: clip; /* Pas d'ellipsis forcé pendant la saisie */
+}
+
 .rsvp-input-firstname,
+.rsvp-input-lastname,
 .rsvp-input-email {
   background: transparent;
   border: none;
@@ -513,18 +528,8 @@ body.hanna-experience-active {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Prénom : 55% à 65% du bloc formulaire, centré */
-.rsvp-input-firstname {
-  width: 60%;
-}
-
-/* Adresse e-mail : 85% à 95% du bloc formulaire, centré */
-.rsvp-input-email {
-  width: 90%;
-  text-overflow: clip; /* Pas d'ellipsis forcé pendant la saisie */
-}
-
 .rsvp-input-firstname::placeholder,
+.rsvp-input-lastname::placeholder,
 .rsvp-input-email::placeholder {
   color: rgba(21, 80, 57, 0.60);
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
@@ -533,6 +538,7 @@ body.hanna-experience-active {
 }
 
 .rsvp-input-firstname:focus,
+.rsvp-input-lastname:focus,
 .rsvp-input-email:focus {
   border-bottom-color: #155039;
   border-bottom-width: 1.5px;
@@ -606,10 +612,24 @@ body.hanna-experience-active {
   cursor: pointer;
   padding: 4px 12px;
   margin-top: 2px;
-  transition: opacity 0.2s ease;
   outline: none;
   position: relative;
   -webkit-tap-highlight-color: transparent;
+
+  /* Caché initialement sans saut de layout */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
+}
+
+/* Révélé uniquement après sélection Présent ou Absent */
+.card-rsvp-overlay.has-choice .rsvp-btn-submit {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .rsvp-btn-submit::before {
@@ -831,10 +851,6 @@ body.hanna-experience-active {
   -webkit-overflow-scrolling: touch;
 }
 
-.invitation-fullscreen-page::-webkit-scrollbar {
-  display: none;
-}
-
 /* ==================================================
    Mode Présentation Finale de la Carte (CARD_READY)
    ================================================== */
@@ -857,6 +873,13 @@ body.hanna-experience-active {
 /* La carte n'est plus un objet flottant mais devient la page elle-même */
 .experience-viewport.is-card-ready .invitation-card-wrapper,
 .invitation-fullscreen-page .invitation-card-wrapper {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 540px !important;
+  height: auto !important;
+  margin: 0 auto !important;
+  left: auto !important;
+  top: auto !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   border: none !important;
@@ -865,15 +888,18 @@ body.hanna-experience-active {
 .experience-viewport.is-card-ready .invitation-card-canvas,
 .invitation-fullscreen-page .invitation-card-canvas {
   width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
+  height: auto !important;
+  aspect-ratio: 941 / 1672 !important;
+  max-width: 100% !important;
+  position: relative;
 }
 
 .experience-viewport.is-card-ready .invitation-card-img,
 .invitation-fullscreen-page .invitation-card-img {
   width: 100% !important;
-  height: 100% !important;
-  object-fit: fill !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block;
 }
 
 /* ==================================================

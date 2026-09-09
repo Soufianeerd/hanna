@@ -175,8 +175,8 @@ export class EnvelopeScene {
 
                     <!-- Formulaire discret dans l'espace vide ivoire bas-centre (Sans titre RSVP) -->
                     <div class="card-rsvp-overlay" id="card-rsvp-overlay">
-                      <!-- Champ Prénom sur sa propre ligne -->
-                      <div class="rsvp-row-firstname">
+                      <!-- Ligne Identité : Prénom + Nom sur la même ligne -->
+                      <div class="rsvp-row-identity">
                         <input
                           id="guest-first-name"
                           class="rsvp-input-firstname"
@@ -185,6 +185,15 @@ export class EnvelopeScene {
                           maxlength="60"
                           placeholder="Prénom"
                           aria-label="Prénom"
+                        />
+                        <input
+                          id="guest-last-name"
+                          class="rsvp-input-lastname"
+                          type="text"
+                          autocomplete="family-name"
+                          maxlength="80"
+                          placeholder="Nom"
+                          aria-label="Nom"
                         />
                       </div>
 
@@ -276,6 +285,7 @@ export class EnvelopeScene {
 
       // RSVP
       guestFirstName: this.container.querySelector('#guest-first-name'),
+      guestLastName: this.container.querySelector('#guest-last-name'),
       guestEmail: this.container.querySelector('#guest-email'),
       rsvpSubmit: this.container.querySelector('#rsvp-btn-submit'),
       rsvpStatusMsg: this.container.querySelector('#rsvp-feedback-msg'),
@@ -418,10 +428,16 @@ export class EnvelopeScene {
       e.stopPropagation();
 
       const firstName = (this.elements.guestFirstName?.value || '').trim();
+      const lastName = (this.elements.guestLastName?.value || '').trim();
       const email = (this.elements.guestEmail?.value || '').trim();
 
       if (!firstName) {
         this.showRsvpError('Merci de renseigner votre prénom.');
+        return;
+      }
+
+      if (!lastName) {
+        this.showRsvpError('Merci de renseigner votre nom.');
         return;
       }
 
@@ -440,6 +456,7 @@ export class EnvelopeScene {
       if (this.onRsvpSubmit) {
         this.onRsvpSubmit({
           firstName,
+          lastName,
           email,
           status: this.selectedChoice
         });
@@ -448,6 +465,7 @@ export class EnvelopeScene {
 
     // Effacer l'erreur à la saisie dans les inputs
     this.elements.guestFirstName?.addEventListener('input', () => this.clearRsvpError());
+    this.elements.guestLastName?.addEventListener('input', () => this.clearRsvpError());
     this.elements.guestEmail?.addEventListener('input', () => this.clearRsvpError());
 
     // Au focus d'un input, centrer doucement dans le viewport sans redimensionner l'invitation
@@ -462,6 +480,7 @@ export class EnvelopeScene {
       }, 180);
     };
     this.elements.guestFirstName?.addEventListener('focus', handleInputFocus);
+    this.elements.guestLastName?.addEventListener('focus', handleInputFocus);
     this.elements.guestEmail?.addEventListener('focus', handleInputFocus);
 
     // 4. Actions Itinéraire & Calendrier (stopPropagation)
@@ -486,6 +505,9 @@ export class EnvelopeScene {
   selectRsvpChoice(choice) {
     this.selectedChoice = choice;
     this.clearRsvpError();
+
+    // Révèle le bouton Valider après le premier choix de présence
+    this.elements.rsvpOverlay?.classList.add('has-choice');
 
     this.elements.rsvpOptionBtns.forEach((btn) => {
       const isSelected = btn.dataset.choice === choice;

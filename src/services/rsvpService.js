@@ -13,12 +13,13 @@ const RSVP_ENDPOINT =
 export { RSVP_ENDPOINT };
 
 /**
- * Soumet la réponse RSVP (Prénom, Email, Présence)
- * @param {{ firstName: string, email: string, status: 'PRESENT'|'ABSENT' }} payload
+ * Soumet la réponse RSVP (Prénom, Nom, Email, Présence)
+ * @param {{ firstName: string, lastName: string, email: string, status: 'PRESENT'|'ABSENT' }} payload
  * @returns {Promise<{ success: boolean, error?: string, message?: string }>}
  */
 export async function submitRsvp({
   firstName,
+  lastName,
   email,
   status
 }) {
@@ -38,6 +39,8 @@ export async function submitRsvp({
       body: JSON.stringify({
         firstName:
           firstName.trim(),
+        lastName:
+          lastName.trim(),
         email:
           email.trim().toLowerCase(),
         attendance
