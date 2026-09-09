@@ -13,7 +13,7 @@ export class CardSendAnimation {
     this.timeline = null;
   }
 
-  play({ onComplete } = {}) {
+  play({ onComplete, onSendStart } = {}) {
     this.kill();
 
     const targetCard = this.scene.elements.card;
@@ -42,7 +42,7 @@ export class CardSendAnimation {
       });
     }
 
-    // 1. Disparition rapide des boutons d'interaction (RSVP + Itinéraire + Calendrier)
+    // 1. Disparition rapide des boutons d'interaction (RSVP + Itinéraire)
     const interactiveOverlays = [rsvpOverlay, actionsRow, routeButton].filter(Boolean);
     if (interactiveOverlays.length > 0) {
       this.timeline.to(interactiveOverlays, {
@@ -59,6 +59,9 @@ export class CardSendAnimation {
 
     this.timeline.add(() => {
       this.stateManager.setState(EXPERIENCE_STATE.CARD_SENDING);
+      if (onSendStart) {
+        onSendStart({ isReduced });
+      }
     });
 
     if (isReduced) {

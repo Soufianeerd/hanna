@@ -20,15 +20,15 @@
  * ↓
  * CARD_EXTRACTING (extraction continue 3.0s sans zigzag)
  * ↓
- * CARD_READY (carte plein écran responsive, fondu audio, RSVP avec 1..4 personnes)
+ * CARD_READY (carte plein écran responsive scrollable, musique continue, formulaire RSVP)
  * ↓ (choix + validation)
- * RSVP_SUBMITTING (envoi Google Apps Script ou fallback DEV)
+ * RSVP_SUBMITTING (envoi Google Apps Script)
  * ↓
  * RSVP_SUCCESS
  * ↓
- * CARD_SENDING (envol gracieux vers le haut)
+ * CARD_SENDING (envol gracieux vers le haut + fade-out audio synchronisé)
  * ↓
- * COMPLETED (message final personnalisé)
+ * COMPLETED (message final dans le silence)
  */
 
 import gsap from 'gsap';
@@ -230,8 +230,13 @@ export class HannaExperience {
         this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);
         this.scene.displayConfirmation(status);
 
-        // Animation d'envoi de la carte vers le haut
-        this.send.play();
+        // Animation d'envoi de la carte vers le haut avec fondu audio synchronisé
+        this.send.play({
+          onSendStart: ({ isReduced } = {}) => {
+            const fadeDuration = isReduced ? 0.5 : 1.0;
+            this.audioManager.fadeOutAndStop(fadeDuration);
+          }
+        });
         return;
       }
       throw new Error(res?.message || 'Impossible d’enregistrer la réponse.');
@@ -249,8 +254,6 @@ export class HannaExperience {
     } else {
       this.scene.setInteractive(false);
     }
-
-    // Note : Le fade out audio est géré de manière unique et temporisée dans onCardReady (delay 0.8s, fade 1.2s)
 
     if (this.devPanelEl) {
       const stateBadge = this.devPanelEl.querySelector('#dev-state-badge');

@@ -1,7 +1,8 @@
 /**
  * Gestionnaire audio pour l'expérience d'ouverture d'invitation Hanna
- * Morceau : "Lilet Elhena" (intro d'ouverture uniquement)
- * Arrêt en fondu à l'apparition finale de la carte (CARD_READY)
+ * Morceau : "Lilet Elhena"
+ * Musique continue en boucle pendant toute l'expérience jusqu'à CARD_SENDING,
+ * puis fade-out synchronisé avec l'envoi de la carte.
  */
 
 import gsap from 'gsap';
@@ -75,6 +76,7 @@ export class InvitationAudioManager {
    * Démarre la musique immédiatement dans le call-stack du geste utilisateur
    */
   start() {
+    this.hasFadedOut = false;
     this.playOnUserGesture();
   }
 
@@ -82,6 +84,7 @@ export class InvitationAudioManager {
     if (!this.available || !this.audio || this.isPlaying) return;
 
     try {
+      this.hasFadedOut = false;
       const targetVolume = this.isMuted ? 0 : AUDIO.invitationMusic.volume;
       const playPromise = this.audio.play();
       if (playPromise !== undefined) {
@@ -105,14 +108,52 @@ export class InvitationAudioManager {
   }
 
   /**
-   * Méthode conservée pour compatibilité mais SANS auto-stop
+   * Fondu progressif vers 0 synchronisé avec le départ de la carte (CARD_SENDING),
+   * puis pause, reset de position et silence total pour la confirmation finale.
    */
-  fadeOutAndStop() {
-    // La musique ne s'arrête plus automatiquement sur les changements d'état
-    return;
+  fadeOutAndStop(duration = 1.0) {
+    if (!this.audio) return;
+
+    if (this.fadeTween) {
+      this.fadeTween.kill();
+      this.fadeTween = null;
+    }
+
+    const currentVolume = this.audio.volume;
+
+    // Si déjà muted ou à volume 0, arrêt direct
+    if (this.isMuted || currentVolume === 0) {
+      try {
+        this.audio.pause();
+        this.audio.currentTime = 0;
+      } catch (_) {}
+      this.isPlaying = false;
+      this.hasFadedOut = true;
+      return;
+    }
+
+    this.fadeTween = gsap.to(this.audio, {
+      volume: 0,
+      duration,
+      ease: 'power2.in',
+      onComplete: () => {
+        try {
+          this.audio.pause();
+          this.audio.currentTime = 0;
+        } catch (_) {}
+
+        this.isPlaying = false;
+        this.hasFadedOut = true;
+        this.fadeTween = null;
+      }
+    });
   }
 
   stop() {
+    if (this.fadeTween) {
+      this.fadeTween.kill();
+      this.fadeTween = null;
+    }
     if (!this.audio) return;
     try {
       this.audio.pause();
@@ -128,7 +169,7 @@ export class InvitationAudioManager {
         this.audio.volume = 0;
       } else {
         this.audio.volume = AUDIO.invitationMusic.volume;
-        if (this.audio.paused) {
+        if (this.audio.paused && !this.hasFadedOut) {
           this.audio.play().catch(() => {});
         }
       }

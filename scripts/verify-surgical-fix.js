@@ -409,18 +409,59 @@ async function verifySurgicalFix() {
 
     // 8. Clic Valider
     console.log('8. Clic sur Valider...');
+    const audioStateBeforeSend = await cdp.eval(`
+      (() => {
+        const am = (window.__hanna || window.__hannaExperience)?.audioManager;
+        return {
+          isPlaying: am?.isPlaying,
+          volume: am?.audio ? am.audio.volume : null,
+          isMuted: am?.isMuted
+        };
+      })()
+    `);
+    console.log('   Audio avant départ carte :', JSON.stringify(audioStateBeforeSend));
+
     await cdp.click('#rsvp-btn-submit');
 
+    let audioDuringSending = null;
     // Attente de l'état COMPLETED
     while (true) {
       const state = await cdp.eval('(window.__hanna || window.__hannaExperience)?.stateManager?.getState()');
-      if (state === 'CARD_SENDING' || state === 'COMPLETED') {
+      if (state === 'CARD_SENDING') {
+        if (!audioDuringSending) {
+          audioDuringSending = await cdp.eval(`
+            (() => {
+              const am = (window.__hanna || window.__hannaExperience)?.audioManager;
+              return {
+                volume: am?.audio ? am.audio.volume : null,
+                hasFadedOut: am?.hasFadedOut
+              };
+            })()
+          `);
+        }
         await cdp.saveVideoFrame(frame++, 'sending_or_completed');
+      } else if (state === 'COMPLETED') {
+        await cdp.saveVideoFrame(frame++, 'sending_or_completed');
+        break;
       }
-      if (state === 'COMPLETED') break;
       await sleep(150);
     }
     await sleep(500);
+
+    const audioAtCompleted = await cdp.eval(`
+      (() => {
+        const am = (window.__hanna || window.__hannaExperience)?.audioManager;
+        return {
+          isPlaying: am?.isPlaying,
+          paused: am?.audio ? am.audio.paused : true,
+          volume: am?.audio ? am.audio.volume : 0,
+          currentTime: am?.audio ? am.audio.currentTime : 0,
+          hasFadedOut: am?.hasFadedOut
+        };
+      })()
+    `);
+    console.log('   Audio pendant départ :', JSON.stringify(audioDuringSending));
+    console.log('   Audio à la confirmation finale (silence) :', JSON.stringify(audioAtCompleted));
 
     // 08_confirmation.png (message final sur fond ivoire)
     console.log('   Capture 08_confirmation.png...');
