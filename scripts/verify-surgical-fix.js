@@ -278,23 +278,23 @@ async function verifySurgicalFix() {
       await cdp.screenshot('06_route_button.png');
     }
 
-    // Test du clic "Ajouter au calendrier"
-    console.log('   Test du clic sur « Ajouter au calendrier »...');
-    const calendarResult = await cdp.eval(`
+    // Vérification de la suppression de « Ajouter au calendrier » et conservation de « Itinéraire »
+    console.log('   Vérification suppression « Ajouter au calendrier » & maintien « Itinéraire »...');
+    const actionCheck = await cdp.eval(`
       (() => {
-        let downloadTriggered = false;
-        const origCreate = URL.createObjectURL;
-        URL.createObjectURL = (blob) => {
-          downloadTriggered = true;
-          return origCreate(blob);
+        const calBtn = document.querySelector('#card-calendar-button');
+        const sep = document.querySelector('.card-actions-separator');
+        const routeBtn = document.querySelector('#card-route-button');
+        const row = document.querySelector('#card-actions-row');
+        return {
+          hasCalendarBtn: !!calBtn,
+          hasSeparator: !!sep,
+          hasRouteBtn: !!routeBtn,
+          routeText: routeBtn ? routeBtn.textContent.trim() : null
         };
-        const btn = document.querySelector('#card-calendar-button');
-        if (btn) btn.click();
-        URL.createObjectURL = origCreate;
-        return { downloadTriggered };
       })()
     `);
-    console.log('   Téléchargement calendrier .ics déclenché :', JSON.stringify(calendarResult));
+    console.log('   État des actions sous la salle :', JSON.stringify(actionCheck));
 
     // Vérification des champs et placeholders
     const formCheck = await cdp.eval(`
@@ -391,6 +391,8 @@ async function verifySurgicalFix() {
         return {
           presentSelected: btn.classList.contains('is-selected'),
           absentSelected: absent.classList.contains('is-selected'),
+          unselectedBg: window.getComputedStyle(absent).backgroundColor,
+          selectedBg: s.backgroundColor,
           borderWidth: s.borderWidth,
           borderColor: s.borderColor,
           fontWeight: s.fontWeight,

@@ -403,7 +403,7 @@ body.hanna-experience-active {
   box-shadow: none !important;
 }
 
-/* Actions discrètes sous la salle : Itinéraire · Ajouter au calendrier */
+/* Action discrète sous la salle : Itinéraire (centré horizontalement) */
 .card-actions-row {
   position: absolute;
   top: 71.0%;
@@ -412,7 +412,6 @@ body.hanna-experience-active {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   z-index: 60;
   opacity: 0;
   pointer-events: none; /* Activé à CARD_READY */
@@ -446,15 +445,6 @@ body.hanna-experience-active {
 
 .card-action-link:active {
   opacity: 0.65;
-}
-
-.card-actions-separator {
-  color: #155039;
-  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
-  font-size: clamp(13px, 3.2cqi, 15px);
-  font-weight: 600;
-  user-select: none;
-  opacity: 0.75;
 }
 
 /* 5. Formulaire discret dans l'espace libéré (aéré, élégant, sans boîte) */
@@ -556,8 +546,11 @@ body.hanna-experience-active {
 
 .rsvp-btn-option {
   flex: 1;
-  border: 1px solid rgba(21, 80, 57, 0.45);
-  background: transparent;
+  border: 1.4px solid rgba(21, 80, 57, 0.65);
+  background: rgba(247, 244, 236, 0.82);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  box-shadow: 0 2px 6px rgba(21, 80, 57, 0.08);
   color: #155039;
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
   font-size: clamp(11.5px, 3.1cqi, 15px);
@@ -587,16 +580,21 @@ body.hanna-experience-active {
 }
 
 .rsvp-btn-option:hover {
-  background: rgba(229, 241, 234, 0.7);
+  background: rgba(247, 244, 236, 0.92);
+}
+
+.rsvp-btn-option:active {
+  transform: scale(0.99);
+  opacity: 0.95;
 }
 
 /* État sélectionné : immédiatement évident, sans badge ni icône ni dot */
 .rsvp-btn-option.is-selected {
   border: 2px solid #155039 !important;
-  background: rgba(21, 80, 57, 0.12) !important;
+  background: rgba(229, 241, 234, 0.96) !important;
   color: #155039 !important;
   font-weight: 700 !important;
-  box-shadow: 0 0 0 1px rgba(21, 80, 57, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(21, 80, 57, 0.12) !important;
 }
 
 .rsvp-btn-submit {
