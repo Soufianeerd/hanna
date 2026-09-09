@@ -9,7 +9,7 @@ export const RSVP_ENDPOINT = (import.meta.env.VITE_RSVP_ENDPOINT || '').trim();
 /**
  * Récupère les données d'un invité via son code personnalisé
  * @param {string} code Code invité (ex: HN-XXXXXXXXXXXX)
- * @returns {Promise<{ ok: boolean, guest?: { firstName: string, rsvp: string|null }, error?: string }>}
+ * @returns {Promise<{ ok: boolean, guest?: { firstName: string, lastName: string, rsvp: string|null }, error?: string }>}
  */
 export async function getGuest(code) {
   const sanitizedCode = (code || '').trim();
@@ -54,7 +54,8 @@ export async function getGuest(code) {
       return {
         ok: true,
         guest: {
-          firstName: 'Invité Démo',
+          firstName: '',
+          lastName: '',
           rsvp: null
         }
       };
@@ -62,7 +63,8 @@ export async function getGuest(code) {
       return {
         ok: true,
         guest: {
-          firstName: 'Invité Démo',
+          firstName: '',
+          lastName: '',
           rsvp: null
         }
       };
@@ -75,17 +77,23 @@ export async function getGuest(code) {
 }
 
 /**
- * Soumet la réponse RSVP (PRESENT ou ABSENT)
- * @param {{ code: string, status: 'PRESENT'|'ABSENT', submittedAt?: string }} payload
+ * Soumet la réponse RSVP (PRESENT ou ABSENT) avec Prénom et Nom
+ * @param {{ code: string, firstName: string, lastName: string, status: 'PRESENT'|'ABSENT', submittedAt?: string }} payload
  * @returns {Promise<{ ok: boolean, saved?: any, error?: string, message?: string }>}
  */
 export async function submitRsvp(payload) {
   const code = (payload.code || '').trim();
+  const firstName = (payload.firstName || '').trim();
+  const lastName = (payload.lastName || '').trim();
   const status = payload.status;
   const submittedAt = payload.submittedAt || new Date().toISOString();
 
+  if (!firstName || !lastName) {
+    return { ok: false, error: 'NAME_REQUIRED', message: 'Merci de renseigner votre nom et votre prénom.' };
+  }
+
   if (status !== 'PRESENT' && status !== 'ABSENT') {
-    return { ok: false, error: 'INVALID_STATUS', message: 'Veuillez choisir Présent(e) ou Absent(e).' };
+    return { ok: false, error: 'INVALID_STATUS', message: 'Merci de sélectionner une réponse.' };
   }
 
   // 1. Envoi vers le Web App Google Apps Script
@@ -100,6 +108,8 @@ export async function submitRsvp(payload) {
           action: 'saveRsvp',
           data: JSON.stringify({
             code,
+            firstName,
+            lastName,
             status,
             submittedAt
           })
@@ -127,19 +137,22 @@ export async function submitRsvp(payload) {
     try {
       const data = {
         code,
+        firstName,
+        lastName,
         status,
         submittedAt
       };
       localStorage.setItem('hanna-rsvp', JSON.stringify(data));
       if (code) {
         localStorage.setItem(`hanna-guest-${code}`, JSON.stringify({
-          firstName: 'Invité Démo',
+          firstName,
+          lastName,
           rsvp: status
         }));
       }
       return {
         ok: true,
-        saved: { status }
+        saved: { firstName, lastName, status }
       };
     } catch (err) {
       return { ok: false, error: 'LOCAL_STORAGE_ERROR' };
@@ -157,9 +170,10 @@ export async function submitRsvp(payload) {
 
 /**
  * Soumission de démonstration sans code invité (ne persiste rien dans Google Sheets)
+ * @param {{ firstName?: string, lastName?: string, status?: string }} [payload]
  * @returns {Promise<{ ok: boolean, demo: boolean }>}
  */
-export async function submitDemoRsvp() {
+export async function submitDemoRsvp(payload) {
   await new Promise((resolve) => setTimeout(resolve, 250));
   return {
     ok: true,

@@ -364,13 +364,25 @@ body.hanna-experience-active {
   user-select: none;
 }
 
-/* Hotspot 100% invisible sur l'adresse existante dans le PNG */
+/* Patch C : Masquage de l'adresse postale avec la texture ivoire de la carte */
+.card-patch-address {
+  position: absolute;
+  top: 71.3%;
+  left: 35%;
+  width: 48%;
+  height: 4.0%;
+  background: #F3F2ED url('/hanna/invitation/card-paper-address-patch.png') repeat;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Hotspot 100% invisible sur le nom de la salle */
 .card-address-hotspot {
   position: absolute;
   top: 66.5%;
-  left: 12%;
-  width: 76%;
-  height: 8.8%;
+  left: 10%;
+  width: 80%;
+  height: 4.8%;
   z-index: 10;
   cursor: pointer;
   pointer-events: none; /* Activé à CARD_READY */
@@ -378,7 +390,7 @@ body.hanna-experience-active {
   border: 0 !important;
   outline: 0 !important;
   box-shadow: none !important;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
+  -webkit-tap-highlight-color: transparent !important;
   -webkit-touch-callout: none;
   text-decoration: none;
 }
@@ -391,53 +403,49 @@ body.hanna-experience-active {
   box-shadow: none !important;
 }
 
-/* Bouton Itinéraire visible sous le bloc adresse */
+/* Texte Itinéraire cliquable élégant et souligné sous le nom de la salle */
 .card-route-button {
   position: absolute;
-  top: 75.4%;
+  top: 71.9%;
   left: 50%;
   transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  background: rgba(247, 244, 236, 0.88);
-  border: 1px solid rgba(21, 80, 57, 0.35);
+  display: inline-block;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   color: #155039;
-  border-radius: 999px;
-  padding: 4px 11px;
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
-  font-size: clamp(10px, 3.0cqi, 14px);
+  font-size: clamp(12px, 3.4cqi, 16px);
   font-weight: 600;
+  font-style: italic;
   letter-spacing: 0.04em;
-  text-decoration: none;
-  box-shadow: 0 2px 5px rgba(21, 80, 57, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  text-decoration: underline;
+  text-underline-offset: 4px;
   z-index: 60;
   cursor: pointer;
   pointer-events: none; /* Activé à CARD_READY */
   opacity: 0;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition: opacity 0.15s ease;
   -webkit-tap-highlight-color: transparent;
   white-space: nowrap;
+  padding: 4px 10px;
 }
 
 .card-route-button:hover {
-  transform: translateX(-50%) translateY(-1px);
-  box-shadow: 0 4px 8px rgba(21, 80, 57, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  background: rgba(247, 244, 236, 0.98);
+  opacity: 0.75;
 }
 
 .card-route-button:active {
-  transform: translateX(-50%) translateY(1px);
-  box-shadow: 0 1px 2px rgba(21, 80, 57, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  opacity: 0.65;
 }
 
-/* 5. RSVP discret dans l'espace vide ivoire bas-centre (Sans titre RSVP) */
+/* 5. Formulaire discret dans l'espace libéré (aéré, élégant, sans boîte) */
 .card-rsvp-overlay {
   position: absolute;
-  top: 80.2%;
-  left: 36%;
-  width: 48%;
+  top: 75.0%;
+  left: 54%;
+  transform: translateX(-50%);
+  width: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -454,12 +462,54 @@ body.hanna-experience-active {
   display: none !important; /* Mot RSVP supprimé selon la demande */
 }
 
+/* Ligne des inputs Prénom et Nom */
+.rsvp-names-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.rsvp-input-name {
+  flex: 1;
+  width: 47%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(21, 80, 57, 0.50);
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  color: #155039;
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-size: 16px; /* Minimum 16px pour empêcher le zoom automatique Safari iOS */
+  font-weight: 500;
+  text-align: center;
+  padding: 3px 0 4px 0;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rsvp-input-name::placeholder {
+  color: rgba(21, 80, 57, 0.62);
+  font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
+  font-style: italic;
+  opacity: 1;
+}
+
+.rsvp-input-name:focus {
+  border-bottom-color: #155039;
+  border-bottom-width: 1.5px;
+  outline: none;
+  box-shadow: none;
+}
+
 .rsvp-overlay-options {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
   justify-content: center;
-  margin-bottom: 2px;
+  margin-bottom: 6px;
 }
 
 .rsvp-btn-option {
@@ -468,10 +518,10 @@ body.hanna-experience-active {
   background: transparent;
   color: #155039;
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
-  font-size: clamp(11px, 3.2cqi, 15px);
+  font-size: clamp(12px, 3.4cqi, 16px);
   font-weight: 600;
-  padding: 3px 5px;
-  min-height: 26px;
+  padding: 4px 6px;
+  min-height: 28px;
   border-radius: 999px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -480,14 +530,15 @@ body.hanna-experience-active {
   display: flex;
   align-items: center;
   justify-content: center;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Touch target étendu pour mobile (>= 42px) sans déborder visuellement */
 .rsvp-btn-option::before {
   content: '';
   position: absolute;
-  top: -8px;
-  bottom: -8px;
+  top: -6px;
+  bottom: -6px;
   left: -4px;
   right: -4px;
 }
@@ -507,17 +558,18 @@ body.hanna-experience-active {
   border: none;
   color: #155039;
   font-family: var(--font-serif, 'Cormorant Garamond', Georgia, serif);
-  font-size: clamp(13px, 3.8cqi, 17px);
+  font-size: clamp(14px, 3.8cqi, 18px);
   font-weight: 600;
   letter-spacing: 0.10em;
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: 4px;
   cursor: pointer;
-  padding: 3px 10px;
+  padding: 4px 12px;
   margin-top: 2px;
   transition: opacity 0.2s ease;
   outline: none;
   position: relative;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .rsvp-btn-submit::before {

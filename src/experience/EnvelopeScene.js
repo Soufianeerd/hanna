@@ -146,7 +146,10 @@ export class EnvelopeScene {
                       <span>À PARTIR DE 18H</span>
                     </div>
 
-                    <!-- Hotspot transparent sur l'adresse existante dans le PNG -->
+                    <!-- Patch C : Masquage parfait de l'adresse postale avec le papier ivoire texture originale -->
+                    <div class="card-patch-address" aria-hidden="true"></div>
+
+                    <!-- Hotspot transparent sur le nom de la salle dans le PNG -->
                     <a class="card-address-hotspot" 
                        id="card-address-hotspot"
                        href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" 
@@ -154,16 +157,38 @@ export class EnvelopeScene {
                        rel="noopener noreferrer" 
                        aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps"></a>
 
-                    <!-- Bouton Itinéraire visible sous le bloc adresse -->
+                    <!-- Texte Itinéraire cliquable élégant et souligné sous le nom de la salle -->
                     <a class="card-route-button" 
                        id="card-route-button"
                        href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" 
                        target="_blank" 
                        rel="noopener noreferrer" 
-                       aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps">Itinéraire ↗</a>
+                       aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps">Itinéraire</a>
 
-                    <!-- RSVP discret dans l'espace vide ivoire bas-centre (Sans titre RSVP) -->
+                    <!-- Formulaire discret dans l'espace vide ivoire bas-centre (Sans titre RSVP) -->
                     <div class="card-rsvp-overlay" id="card-rsvp-overlay">
+                      <!-- Champs Prénom et Nom -->
+                      <div class="rsvp-names-row">
+                        <input
+                          id="guest-first-name"
+                          class="rsvp-input-name"
+                          type="text"
+                          autocomplete="given-name"
+                          maxlength="60"
+                          placeholder="Prénom"
+                          aria-label="Prénom"
+                        />
+                        <input
+                          id="guest-last-name"
+                          class="rsvp-input-name"
+                          type="text"
+                          autocomplete="family-name"
+                          maxlength="60"
+                          placeholder="Nom"
+                          aria-label="Nom"
+                        />
+                      </div>
+
                       <!-- Choix Présence -->
                       <div class="rsvp-overlay-options" role="group" aria-label="Présence à l'événement">
                         <button type="button" class="rsvp-btn-option" data-choice="PRESENT" aria-pressed="false">Présent(e)</button>
@@ -235,6 +260,8 @@ export class EnvelopeScene {
       fullscreenPage: this.container.querySelector('#invitation-fullscreen-page'),
 
       // RSVP
+      guestFirstName: this.container.querySelector('#guest-first-name'),
+      guestLastName: this.container.querySelector('#guest-last-name'),
       rsvpSubmit: this.container.querySelector('#rsvp-btn-submit'),
       rsvpStatusMsg: this.container.querySelector('#rsvp-feedback-msg'),
       rsvpOptionBtns: this.container.querySelectorAll('.rsvp-btn-option'),
@@ -375,6 +402,14 @@ export class EnvelopeScene {
     this.elements.rsvpSubmit?.addEventListener('click', (e) => {
       e.stopPropagation();
 
+      const firstName = (this.elements.guestFirstName?.value || '').trim();
+      const lastName = (this.elements.guestLastName?.value || '').trim();
+
+      if (!firstName || !lastName) {
+        this.showRsvpError('Merci de renseigner votre nom et votre prénom.');
+        return;
+      }
+
       if (!this.selectedChoice) {
         this.showRsvpError('Merci de sélectionner une réponse.');
         return;
@@ -383,10 +418,16 @@ export class EnvelopeScene {
       this.clearRsvpError();
       if (this.onRsvpSubmit) {
         this.onRsvpSubmit({
+          firstName,
+          lastName,
           status: this.selectedChoice
         });
       }
     });
+
+    // Effacer l'erreur à la saisie dans les inputs
+    this.elements.guestFirstName?.addEventListener('input', () => this.clearRsvpError());
+    this.elements.guestLastName?.addEventListener('input', () => this.clearRsvpError());
 
     // 4. Bouton Itinéraire (stopPropagation)
     this.elements.routeButton?.addEventListener('click', (e) => {
@@ -452,7 +493,7 @@ export class EnvelopeScene {
 
   /**
    * Configure les informations d'invité obtenues depuis l'API ou le mode démo
-   * @param {{ firstName?: string, rsvp?: string }|null} guest
+   * @param {{ firstName?: string, lastName?: string, rsvp?: string }|null} guest
    * @param {boolean} isProductionWithoutCode
    */
   configureGuest(guest, isProductionWithoutCode = false) {
@@ -466,6 +507,13 @@ export class EnvelopeScene {
     }
 
     if (guest) {
+      // Préremplissage Prénom et Nom si existants
+      if (guest.firstName && this.elements.guestFirstName) {
+        this.elements.guestFirstName.value = guest.firstName;
+      }
+      if (guest.lastName && this.elements.guestLastName) {
+        this.elements.guestLastName.value = guest.lastName;
+      }
       // Pré-sélection de la réponse existante si déjà soumise
       if (guest.rsvp === 'PRESENT' || guest.rsvp === 'ABSENT') {
         this.selectRsvpChoice(guest.rsvp);

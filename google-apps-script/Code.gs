@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * HANNA — GOOGLE APPS SCRIPT BACKEND RSVP & DASHBOARD (VERSION ÉPURÉE)
+ * HANNA — GOOGLE APPS SCRIPT BACKEND RSVP & DASHBOARD
  * Compte officiel : Hamidi.salma54@gmail.com
  * Site Netlify : https://hannasalma.netlify.app/
  * ============================================================================
@@ -13,7 +13,7 @@ const CONFIG = {
   SITE_BASE_URL: 'https://hannasalma.netlify.app/'
 };
 
-// Schéma officiel épuré sans accompagnants (8 colonnes)
+// Schéma officiel à 8 colonnes
 const INVITES_HEADERS = [
   'CODE',            // A (1)
   'PRENOM',          // B (2)
@@ -24,6 +24,38 @@ const INVITES_HEADERS = [
   'ACTIF',           // G (7) - TRUE ou FALSE
   'LIEN_INVITATION'  // H (8)
 ];
+
+/**
+ * Menu personnalisé automatique dans Google Sheets
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Hanna')
+    .addItem('Créer 1 lien d’invitation', 'createOneInviteLink')
+    .addItem('Créer 10 liens d’invitation', 'createTenInviteLinks')
+    .addSeparator()
+    .addItem('Mettre à jour le dashboard', 'refreshDashboard')
+    .addItem('Vérifier / initialiser Hanna', 'setupHanna')
+    .addToUi();
+}
+
+/**
+ * Fonctions déclenchées depuis le menu Hanna
+ */
+function createOneInviteLink() {
+  createInviteLinks_(1);
+}
+
+function createTenInviteLinks() {
+  createInviteLinks_(10);
+}
+
+function refreshDashboard() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  updateDashboard_(ss);
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getUi().alert('Tableau de bord actualisé avec succès !');
+}
 
 /**
  * Initialisation idempotente du Google Spreadsheet
@@ -39,8 +71,8 @@ function setupHanna() {
     sheetInvites = ss.insertSheet(CONFIG.SHEET_INVITES, 0);
     sheetInvites.appendRow(INVITES_HEADERS);
   } else {
-    // Migration sécurisée si l'ancienne structure (avec MAX_PERSONNES) est détectée
-    migrateLegacyInviteSheet_(sheetInvites);
+    // S'assure que les en-têtes sont à jour
+    sheetInvites.getRange(1, 1, 1, INVITES_HEADERS.length).setValues([INVITES_HEADERS]);
   }
 
   // Formatage esthétique de la feuille INVITES
@@ -60,7 +92,7 @@ function setupHanna() {
   sheetInvites.setColumnWidth(5, 175); // DATE_REPONSE
   sheetInvites.setColumnWidth(6, 175); // UPDATED_AT
   sheetInvites.setColumnWidth(7, 95);  // ACTIF
-  sheetInvites.setColumnWidth(8, 360); // LIEN_INVITATION
+  sheetInvites.setColumnWidth(8, 380); // LIEN_INVITATION
 
   // 2. Feuille DASHBOARD
   let sheetDashboard = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
@@ -98,99 +130,55 @@ function setupHanna() {
 }
 
 /**
- * Migration transparente sans suppression de données :
- * Si la feuille contient les anciennes colonnes MAX_PERSONNES / NB_ACCOMPAGNANTS,
- * réorganise les données vers le nouveau format à 8 colonnes en préservant tout l'existant.
+ * Crée N nouveaux liens d'invitation avec code unique et prêt à envoyer
+ * @param {number} count Nombre de liens à générer
  */
-function migrateLegacyInviteSheet_(sheet) {
-  const lastRow = sheet.getLastRow();
-  const lastCol = sheet.getLastColumn();
-  if (lastRow === 0 || lastCol === 0) {
-    sheet.appendRow(INVITES_HEADERS);
-    return;
-  }
-
-  const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  const maxPersIndex = firstRow.indexOf('MAX_PERSONNES');
-  const oldNbAccompIndex = firstRow.indexOf('NB_ACCOMPAGNANTS');
-
-  // Si l'ancienne structure est détectée
-  if (maxPersIndex !== -1 || oldNbAccompIndex !== -1) {
-    const codeIdx = firstRow.indexOf('CODE');
-    const prenomIdx = firstRow.indexOf('PRENOM');
-    const nomIdx = firstRow.indexOf('NOM');
-    const rsvpIdx = firstRow.indexOf('RSVP');
-    const dateRepIdx = firstRow.indexOf('DATE_REPONSE');
-    const updatedIdx = firstRow.indexOf('UPDATED_AT');
-    const actifIdx = firstRow.indexOf('ACTIF');
-    const lienIdx = firstRow.indexOf('LIEN_INVITATION');
-
-    const allData = sheet.getRange(2, 1, Math.max(1, lastRow - 1), lastCol).getValues();
-    const migratedRows = [];
-
-    for (let i = 0; i < allData.length; i++) {
-      const row = allData[i];
-      if (!row[codeIdx] && !row[prenomIdx]) continue;
-
-      migratedRows.push([
-        codeIdx !== -1 ? row[codeIdx] : '',
-        prenomIdx !== -1 ? row[prenomIdx] : '',
-        nomIdx !== -1 ? row[nomIdx] : '',
-        rsvpIdx !== -1 ? row[rsvpIdx] : '',
-        dateRepIdx !== -1 ? row[dateRepIdx] : '',
-        updatedIdx !== -1 ? row[updatedIdx] : '',
-        actifIdx !== -1 ? row[actifIdx] : true,
-        lienIdx !== -1 ? row[lienIdx] : ''
-      ]);
-    }
-
-    // Réécriture propre du tableau
-    sheet.clear();
-    sheet.appendRow(INVITES_HEADERS);
-    if (migratedRows.length > 0) {
-      sheet.getRange(2, 1, migratedRows.length, INVITES_HEADERS.length).setValues(migratedRows);
-    }
-  } else {
-    // S'assure que l'en-tête correspond exactement
-    sheet.getRange(1, 1, 1, INVITES_HEADERS.length).setValues([INVITES_HEADERS]);
-  }
-}
-
-/**
- * Génère des codes sécurisés non devinables (HN-XXXXXXXXXXXX) pour toutes les lignes
- * où le prénom est renseigné mais le code est vide.
- */
-function generateMissingInviteCodes() {
+function createInviteLinks_(count = 1) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEET_INVITES);
-  if (!sheet) throw new Error('Feuille INVITES introuvable.');
+  let sheet = ss.getSheetByName(CONFIG.SHEET_INVITES);
+  if (!sheet) {
+    setupHanna();
+    sheet = ss.getSheetByName(CONFIG.SHEET_INVITES);
+  }
 
+  const existingCodes = new Set();
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return;
+  if (lastRow >= 2) {
+    const codes = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    codes.forEach(r => {
+      const c = String(r[0] || '').trim();
+      if (c) existingCodes.add(c);
+    });
+  }
 
-  const dataRange = sheet.getRange(2, 1, lastRow - 1, INVITES_HEADERS.length);
-  const rows = dataRange.getValues();
-  let generatedCount = 0;
-
-  for (let i = 0; i < rows.length; i++) {
-    const code = String(rows[i][0] || '').trim();
-    const prenom = String(rows[i][1] || '').trim();
-
-    if (prenom && !code) {
-      const newCode = generateSecureCode_();
-      rows[i][0] = newCode;                                     // A : CODE
-      rows[i][6] = rows[i][6] === '' ? true : rows[i][6];        // G : ACTIF
-      rows[i][7] = CONFIG.SITE_BASE_URL + '?code=' + newCode;    // H : LIEN_INVITATION
-      generatedCount++;
+  const newRows = [];
+  for (let i = 0; i < count; i++) {
+    let newCode = generateSecureCode_();
+    while (existingCodes.has(newCode)) {
+      newCode = generateSecureCode_();
     }
+    existingCodes.add(newCode);
+
+    const lien = CONFIG.SITE_BASE_URL + '?code=' + newCode;
+    newRows.push([
+      newCode, // A: CODE
+      '',      // B: PRENOM (vide au départ)
+      '',      // C: NOM (vide au départ)
+      '',      // D: RSVP (vide au départ)
+      '',      // E: DATE_REPONSE
+      '',      // F: UPDATED_AT
+      true,    // G: ACTIF
+      lien     // H: LIEN_INVITATION
+    ]);
   }
 
-  if (generatedCount > 0) {
-    dataRange.setValues(rows);
+  if (newRows.length > 0) {
+    const startRow = Math.max(2, sheet.getLastRow() + 1);
+    sheet.getRange(startRow, 1, newRows.length, INVITES_HEADERS.length).setValues(newRows);
+    updateDashboard_(ss);
     SpreadsheetApp.flush();
+    logAction_('CREATE_LINKS', '', 'SUCCESS', `${count} nouveau(x) lien(s) généré(s)`);
   }
-
-  logAction_('GENERATE_CODES', '', 'SUCCESS', `${generatedCount} code(s) invité(s) généré(s)`);
 }
 
 function generateSecureCode_() {
@@ -280,12 +268,13 @@ function handleGetGuest_(payload) {
         return { ok: false, error: 'INVITE_INACTIVE', message: 'Cette invitation est désactivée.' };
       }
 
-      logAction_('GET_GUEST', code, 'SUCCESS', `Consultation pour ${data[i][1]}`);
+      logAction_('GET_GUEST', code, 'SUCCESS', `Consultation code ${code}`);
 
       return {
         ok: true,
         guest: {
-          firstName: data[i][1] || 'Invité(e)',
+          firstName: data[i][1] || '',
+          lastName: data[i][2] || '',
           rsvp: data[i][3] || null
         }
       };
@@ -298,16 +287,21 @@ function handleGetGuest_(payload) {
 
 function handleSaveRsvp_(payload) {
   const code = (payload.code || '').trim();
+  const firstName = (payload.firstName || '').trim();
+  const lastName = (payload.lastName || '').trim();
   const status = (payload.status || '').trim().toUpperCase();
 
   if (!code) {
     return { ok: false, error: 'CODE_REQUIRED', message: 'Code d’invitation obligatoire' };
   }
+  if (!firstName || !lastName) {
+    return { ok: false, error: 'NAME_REQUIRED', message: 'Merci de renseigner votre nom et votre prénom.' };
+  }
   if (status !== 'PRESENT' && status !== 'ABSENT') {
     return { ok: false, error: 'INVALID_STATUS', message: 'Réponse invalide (PRESENT ou ABSENT requis)' };
   }
 
-  // Verrouillage transactionnel pour empêcher toute écriture concurrente
+  // Verrouillage transactionnel pour empêcher toute collision d'écriture concurrente
   const lock = LockService.getScriptLock();
   const hasLock = lock.tryLock(10000);
   if (!hasLock) {
@@ -345,20 +339,22 @@ function handleSaveRsvp_(payload) {
     const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
     const firstResponseDate = currentRow[4] || nowStr;
 
-    // Mise à jour ciblée des colonnes D (RSVP), E (DATE_REPONSE), F (UPDATED_AT)
-    sheet.getRange(rowIndex, 4, 1, 3).setValues([
-      [status, firstResponseDate, nowStr]
+    // Mise à jour ciblée : B (PRENOM), C (NOM), D (RSVP), E (DATE_REPONSE), F (UPDATED_AT)
+    sheet.getRange(rowIndex, 2, 1, 5).setValues([
+      [firstName, lastName, status, firstResponseDate, nowStr]
     ]);
 
     // Recalcul immédiat du tableau de bord
     updateDashboard_(ss);
     SpreadsheetApp.flush();
 
-    logAction_('SAVE_RSVP', code, 'SUCCESS', `RSVP enregistré: ${status}`);
+    logAction_('SAVE_RSVP', code, 'SUCCESS', `RSVP enregistré: ${firstName} ${lastName} -> ${status}`);
 
     return {
       ok: true,
       saved: {
+        firstName: firstName,
+        lastName: lastName,
         status: status
       }
     };
@@ -454,14 +450,14 @@ function formatDashboardLayout_(sheet) {
        .setFontSize(10)
        .setHorizontalAlignment('center');
 
-  // Libellés
+  // Libellés demandés
   const labels = [
     ['TOTAL INVITATIONS ACTIVES', 0],
     ['RÉPONSES REÇUES', 0],
     ['EN ATTENTE', 0],
     ['', ''],
-    ['PRÉSENTS', 0],
-    ['ABSENTS', 0],
+    ['INVITÉS PRÉSENTS', 0],
+    ['INVITÉS ABSENTS', 0],
     ['', ''],
     ['DERNIÈRE MISE À JOUR', '']
   ];

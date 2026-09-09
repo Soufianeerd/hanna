@@ -240,7 +240,7 @@ export class HannaExperience {
     });
   }
 
-  async handleRsvpSubmit({ status }) {
+  async handleRsvpSubmit({ firstName, lastName, status }) {
     if (!this.stateManager.is(EXPERIENCE_STATE.CARD_READY)) return;
 
     this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUBMITTING);
@@ -251,13 +251,15 @@ export class HannaExperience {
       // Soumission avec code invité -> Google Apps Script
       const payload = {
         code: this.guestCode,
-        status: status,
+        firstName,
+        lastName,
+        status,
         submittedAt: new Date().toISOString()
       };
       res = await submitRsvp(payload);
     } else {
       // Mode démo sans code invité (ne touche pas au Google Sheet, fluidité garantie)
-      res = await submitDemoRsvp();
+      res = await submitDemoRsvp({ firstName, lastName, status });
     }
 
     if (res.ok) {

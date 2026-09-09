@@ -259,6 +259,18 @@ async function verifySurgicalFix() {
       await cdp.screenshot('06_route_button.png');
     }
 
+    // Saisie de Prénom et Nom
+    console.log('   Saisie de Prénom (Sarah) et Nom (Martin)...');
+    await cdp.eval(`
+      (() => {
+        const fn = document.querySelector('#guest-first-name');
+        const ln = document.querySelector('#guest-last-name');
+        if (fn) fn.value = 'Sarah';
+        if (ln) ln.value = 'Martin';
+      })()
+    `);
+    await sleep(200);
+
     // 07_present_selected.png
     console.log('7. Clic sur Présent(e)...');
     await cdp.click('.rsvp-btn-option[data-choice="PRESENT"]');
