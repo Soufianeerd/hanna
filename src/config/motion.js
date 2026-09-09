@@ -4,19 +4,19 @@
  */
 
 export const MOTION = {
-  // Séquence d'entrée
+  // Séquence d'entrée (ralentie pour une arrivée contemplative)
   entrance: {
-    duration: 1.35,
-    ease: 'power3.out',
+    duration: 2.10,
+    ease: 'power2.out',
     startScale: 0.94,
     finalScale: 1.0,
-    opacityDurationPercent: 0.65,
+    opacityDuration: 1.20,
     opacityEase: 'power2.out',
     safetyMarginY: 60,
     settle: {
       overshootY: -6,
       overshootScale: 1.002,
-      duration: 0.22,
+      duration: 0.30,
       ease: 'power2.out'
     }
   },

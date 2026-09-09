@@ -41,7 +41,7 @@ import { EnvelopeFlipAnimation } from '../animation/envelopeFlip.js';
 import { CardExtractionAnimation } from '../animation/cardExtraction.js';
 import { CardSendAnimation } from '../animation/cardSend.js';
 import { InvitationAudioManager } from '../audio/invitationAudio.js';
-import { getGuest, submitRsvp, RSVP_ENDPOINT } from '../services/rsvpService.js';
+import { getGuest, submitRsvp, submitDemoRsvp, RSVP_ENDPOINT } from '../services/rsvpService.js';
 
 export class HannaExperience {
   constructor(container, options = {}) {
@@ -66,6 +66,10 @@ export class HannaExperience {
     const urlParams = new URLSearchParams(window.location.search);
     this.guestCode = (urlParams.get('code') || '').trim();
     this.guest = null;
+
+    if (typeof window !== 'undefined') {
+      window.__hannaExperience = this;
+    }
 
     this.init();
   }
@@ -229,11 +233,7 @@ export class HannaExperience {
         // 3. Extraction progressive puis présentation continue
         this.extraction.play({
           onCardReady: () => {
-            // CardPresentation totalement terminée et RSVP totalement apparu :
-            // Attendre encore environ 0.8s puis fondu doux sur 1.2s
-            gsap.delayedCall(0.8, () => {
-              this.audioManager.fadeOutAndStop(1.2);
-            });
+            // Musique continue en boucle infinie (pas de fondu ni arrêt automatique)
           }
         });
       }
@@ -246,13 +246,19 @@ export class HannaExperience {
     this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUBMITTING);
     this.scene.setRsvpButtonsDisabled(true);
 
-    const payload = {
-      code: this.guestCode,
-      status: status,
-      submittedAt: new Date().toISOString()
-    };
-
-    const res = await submitRsvp(payload);
+    let res;
+    if (this.guestCode) {
+      // Soumission avec code invité -> Google Apps Script
+      const payload = {
+        code: this.guestCode,
+        status: status,
+        submittedAt: new Date().toISOString()
+      };
+      res = await submitRsvp(payload);
+    } else {
+      // Mode démo sans code invité (ne touche pas au Google Sheet, fluidité garantie)
+      res = await submitDemoRsvp();
+    }
 
     if (res.ok) {
       this.stateManager.setState(EXPERIENCE_STATE.RSVP_SUCCESS);

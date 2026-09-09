@@ -154,10 +154,16 @@ export class EnvelopeScene {
                        rel="noopener noreferrer" 
                        aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps"></a>
 
-                    <!-- RSVP discret dans l'espace vide ivoire bas-centre (Sans accompagnants) -->
+                    <!-- Bouton Itinéraire visible sous le bloc adresse -->
+                    <a class="card-route-button" 
+                       id="card-route-button"
+                       href="https://www.google.com/maps/search/?api=1&query=${mapsQuery}" 
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       aria-label="Ouvrir l’itinéraire vers la salle sur Google Maps">Itinéraire ↗</a>
+
+                    <!-- RSVP discret dans l'espace vide ivoire bas-centre (Sans titre RSVP) -->
                     <div class="card-rsvp-overlay" id="card-rsvp-overlay">
-                      <div class="rsvp-overlay-title">RSVP</div>
-                      
                       <!-- Choix Présence -->
                       <div class="rsvp-overlay-options" role="group" aria-label="Présence à l'événement">
                         <button type="button" class="rsvp-btn-option" data-choice="PRESENT" aria-pressed="false">Présent(e)</button>
@@ -179,6 +185,9 @@ export class EnvelopeScene {
 
           </div>
         </div>
+
+        <!-- Page Plein Écran (parent final immersif de la carte à CARD_PRESENTING / CARD_READY) -->
+        <div class="invitation-fullscreen-page" id="invitation-fullscreen-page" style="display: none;"></div>
 
         <!-- 3. Message de confirmation final après envoi -->
         <div class="confirmation-message" id="confirmation-message" style="display: none;">
@@ -221,7 +230,9 @@ export class EnvelopeScene {
       cardImg: this.container.querySelector('.invitation-card-img'),
       openForeground: this.container.querySelector('#open-envelope-foreground'),
       addressHotspot: this.container.querySelector('#card-address-hotspot'),
+      routeButton: this.container.querySelector('#card-route-button'),
       rsvpOverlay: this.container.querySelector('#card-rsvp-overlay'),
+      fullscreenPage: this.container.querySelector('#invitation-fullscreen-page'),
 
       // RSVP
       rsvpSubmit: this.container.querySelector('#rsvp-btn-submit'),
@@ -364,11 +375,6 @@ export class EnvelopeScene {
     this.elements.rsvpSubmit?.addEventListener('click', (e) => {
       e.stopPropagation();
 
-      if (this.isRsvpDisabledForDemo) {
-        this.showRsvpError("Cette invitation ne permet pas d'enregistrer une réponse.");
-        return;
-      }
-
       if (!this.selectedChoice) {
         this.showRsvpError('Merci de sélectionner une réponse.');
         return;
@@ -382,7 +388,12 @@ export class EnvelopeScene {
       }
     });
 
-    // 4. Bouton Audio Mute
+    // 4. Bouton Itinéraire (stopPropagation)
+    this.elements.routeButton?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // 5. Bouton Audio Mute
     this.elements.audioBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       if (this.onMuteToggle) {
@@ -446,14 +457,12 @@ export class EnvelopeScene {
    */
   configureGuest(guest, isProductionWithoutCode = false) {
     this.guestInfo = guest;
-    this.isRsvpDisabledForDemo = isProductionWithoutCode;
+    this.isRsvpDisabledForDemo = false; // Le bouton reste toujours actif pour permettre le mode démo
 
-    if (isProductionWithoutCode) {
-      if (this.elements.rsvpSubmit) {
-        this.elements.rsvpSubmit.disabled = true;
-      }
-      this.showRsvpError("Cette invitation ne permet pas d'enregistrer une réponse.");
-      return;
+    if (this.elements.rsvpSubmit) {
+      this.elements.rsvpSubmit.disabled = false;
+      this.elements.rsvpSubmit.style.pointerEvents = 'auto';
+      this.elements.rsvpSubmit.style.cursor = 'pointer';
     }
 
     if (guest) {
@@ -494,12 +503,15 @@ export class EnvelopeScene {
 
   displayConfirmation(status) {
     const { confirmationTitle, confirmationText } = this.elements;
-    if (status === 'PRESENT') {
-      confirmationTitle.textContent = 'Merci pour votre présence !';
-      confirmationText.innerHTML = `Votre confirmation de présence a bien été enregistrée.<br />Nous avons hâte de partager ce moment précieux avec vous.`;
-    } else {
+    if (confirmationTitle) {
       confirmationTitle.textContent = 'Merci pour votre réponse';
-      confirmationText.innerHTML = `Votre réponse a bien été prise en compte.<br />Nous regrettons votre absence et penserons bien à vous.`;
+    }
+    if (confirmationText) {
+      if (status === 'PRESENT') {
+        confirmationText.innerHTML = `Votre présence a bien été enregistrée.<br />Nous avons hâte de partager ce moment avec vous.`;
+      } else {
+        confirmationText.innerHTML = `Nous vous remercions de nous avoir prévenus<br />et pour vos douaas.`;
+      }
     }
   }
 

@@ -154,3 +154,15 @@ export async function submitRsvp(payload) {
     message: 'Le service de réponse en ligne n’est pas disponible pour le moment.'
   };
 }
+
+/**
+ * Soumission de démonstration sans code invité (ne persiste rien dans Google Sheets)
+ * @returns {Promise<{ ok: boolean, demo: boolean }>}
+ */
+export async function submitDemoRsvp() {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return {
+    ok: true,
+    demo: true
+  };
+}

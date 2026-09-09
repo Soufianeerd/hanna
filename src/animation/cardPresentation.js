@@ -8,7 +8,7 @@
 
 import gsap from 'gsap';
 import { EXPERIENCE_STATE } from '../experience/experienceState.js';
-import { computeFinalCardRect } from '../utils/visualViewport.js';
+import { computeFinalCardRect, getVisualViewportRect } from '../utils/visualViewport.js';
 
 export class CardPresentationAnimation {
   constructor(scene, stateManager) {
@@ -27,7 +27,9 @@ export class CardPresentationAnimation {
       openBackground, 
       openForeground, 
       addressHotspot, 
-      rsvpOverlay 
+      routeButton,
+      rsvpOverlay,
+      fullscreenPage
     } = this.scene.elements;
 
     if (!card) {
@@ -37,22 +39,40 @@ export class CardPresentationAnimation {
 
     this.stateManager.setState(EXPERIENCE_STATE.CARD_PRESENTING);
 
-    // 1. Mesure exacte de la position et de la dimension courantes de la carte
+    // 1. Mesure exacte de la bounding box actuelle de la carte avant déplacement
     const startRect = card.getBoundingClientRect();
 
-    // 2. Calcul de la cible optimale basée sur le visualViewport (garantit 0 rognage sur Safari iOS)
+    // 2. Visual Viewport courant
+    const vv = getVisualViewportRect();
+
+    // 3. Calcul de la cible plein écran (largeur 100% sur mobile 390×844)
     const targetRect = computeFinalCardRect();
 
-    // 3. Déplacer la carte vers le viewport racine pour garantir que position: fixed
-    // soit strictement relative à la fenêtre globale sans subir de transform parente
-    const viewport = this.scene.elements.viewport || document.getElementById('experience-viewport') || document.body;
-    viewport.appendChild(card);
+    // 4. Préparation de la page plein écran (#F7F4EC)
+    const pageContainer = fullscreenPage || document.getElementById('invitation-fullscreen-page') || document.body;
+    pageContainer.style.display = 'block';
+    pageContainer.style.position = 'fixed';
+    pageContainer.style.left = `${vv.offsetLeft}px`;
+    pageContainer.style.top = `${vv.offsetTop}px`;
+    pageContainer.style.width = `${vv.width}px`;
+    pageContainer.style.height = `${vv.height}px`;
+    pageContainer.style.zIndex = '500';
+    pageContainer.style.overflowY = 'auto';
+    pageContainer.style.overflowX = 'hidden';
+    pageContainer.style.webkitOverflowScrolling = 'touch';
+    pageContainer.scrollTop = 0;
 
-    // 4. Bascule instantanée en position fixed aux coordonnées exactes (0 saut visuel)
+    // Déplacer la carte dans le conteneur plein écran
+    pageContainer.appendChild(card);
+
+    // Coordonnées de départ relatives à la page plein écran (0 saut visuel)
+    const startX = startRect.left - vv.offsetLeft;
+    const startY = startRect.top - vv.offsetTop;
+
     gsap.set(card, {
-      position: 'fixed',
-      left: startRect.left,
-      top: startRect.top,
+      position: 'absolute',
+      left: startX,
+      top: startY,
       width: startRect.width,
       height: startRect.height,
       x: 0,
@@ -60,7 +80,8 @@ export class CardPresentationAnimation {
       margin: 0,
       rotation: 0,
       scale: 1,
-      zIndex: 500,
+      borderRadius: '4px',
+      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
       transform: 'none'
     });
 
@@ -69,7 +90,13 @@ export class CardPresentationAnimation {
       cardCanvas.style.height = '100%';
     }
 
-    // 5. Disparition fluide en parallèle des faces de l'enveloppe (recul doux)
+    // 5. Fondu progressif du fond de la page plein écran (sans flash)
+    gsap.fromTo(pageContainer, 
+      { backgroundColor: 'rgba(247, 244, 236, 0)' }, 
+      { backgroundColor: 'rgba(247, 244, 236, 1)', duration: 0.85, ease: 'power2.inOut' }
+    );
+
+    // Disparition douce en parallèle des faces de l'enveloppe
     const envelopeElements = [openBackground, openForeground].filter(Boolean);
     if (envelopeElements.length > 0) {
       gsap.to(envelopeElements, {
@@ -86,48 +113,76 @@ export class CardPresentationAnimation {
       });
     }
 
-    // 5. Animation continue et progressive de la carte vers sa géométrie finale
+    // 6. Animation continue et progressive (1.20s, power3.inOut) vers la page plein écran
+    const targetX = targetRect.left - vv.offsetLeft;
+    const targetY = targetRect.top - vv.offsetTop;
+
     const animObj = {
-      left: startRect.left,
-      top: startRect.top,
+      left: startX,
+      top: startY,
       width: startRect.width,
-      height: startRect.height
+      height: startRect.height,
+      borderRadius: 4,
+      shadowOpacity: 0.08
     };
 
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const duration = isReduced ? 0.4 : 1.05;
+    const duration = isReduced ? 0.4 : 1.20;
 
     this.tween = gsap.to(animObj, {
-      left: targetRect.left,
-      top: targetRect.top,
+      left: targetX,
+      top: targetY,
       width: targetRect.width,
       height: targetRect.height,
+      borderRadius: 0,
+      shadowOpacity: 0,
       duration: duration,
-      ease: 'power2.inOut',
+      ease: 'power3.inOut',
       onUpdate: () => {
         gsap.set(card, {
           left: animObj.left,
           top: animObj.top,
           width: animObj.width,
-          height: animObj.height
+          height: animObj.height,
+          borderRadius: `${animObj.borderRadius}px`,
+          boxShadow: `0 10px 30px rgba(0, 0, 0, ${animObj.shadowOpacity})`
         });
       },
       onComplete: () => {
         // Enregistrement de la position finale pour le responsive resize
         this.scene.setFinalCardGeometry(targetRect);
 
-        // Transition vers CARD_READY uniquement maintenant
+        // Transition vers CARD_READY
         this.stateManager.setState(EXPERIENCE_STATE.CARD_READY);
         if (this.scene.setCardReady) {
           this.scene.setCardReady();
         }
 
-        // Activation du hotspot d'adresse
+        // Suppression définitive de tout look de carte flottante
+        card.style.borderRadius = '0';
+        card.style.boxShadow = 'none';
+
+        // Position de scroll initiale en haut
+        pageContainer.scrollTop = 0;
+
+        // Activation du hotspot d'adresse invisible
         if (addressHotspot) {
           addressHotspot.style.pointerEvents = 'auto';
         }
 
-        // Révélation élégante du RSVP
+        // Révélation du bouton Itinéraire visible
+        if (routeButton) {
+          gsap.to(routeButton, {
+            opacity: 1,
+            duration: 0.35,
+            ease: 'power1.out',
+            onStart: () => {
+              routeButton.style.pointerEvents = 'auto';
+            }
+          });
+        }
+
+        // Révélation élégante du formulaire RSVP
         if (rsvpOverlay) {
           gsap.to(rsvpOverlay, {
             opacity: 1,

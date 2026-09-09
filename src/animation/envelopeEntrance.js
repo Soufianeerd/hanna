@@ -84,8 +84,8 @@ export class EnvelopeEntranceAnimation {
       ease: config.ease
     }, 0);
 
-    // 2. Opacité progressive devenant 1 à ~65% de la durée
-    const opacityDuration = config.duration * config.opacityDurationPercent;
+    // 2. Opacité progressive : 0 -> 1 sur 1.20s (totalement opaque avant d'arriver au centre)
+    const opacityDuration = config.opacityDuration || 1.20;
     this.timeline.to(motionWrapper, {
       opacity: 1,
       duration: opacityDuration,

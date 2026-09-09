@@ -92,25 +92,29 @@ class CDPClient {
 }
 
 async function verifySurgicalFix() {
-  console.log('=== VÉRIFICATION CHIRURGICALE ET ENREGISTREMENT FLUX COMPLET ===');
+  console.log('=== VÉRIFICATION FINALE UX MOBILE PLEIN ÉCRAN + AUDIO LOOP + ITINÉRAIRE + RSVP ===');
+  const profileDir = `/tmp/chrome-test-profile-${Date.now()}`;
+  fs.mkdirSync(profileDir, { recursive: true });
+
   const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
-    '--headless',
-    '--remote-debugging-port=9230',
+    '--headless=new',
+    '--remote-debugging-port=9231',
+    `--user-data-dir=${profileDir}`,
     '--disable-gpu',
     '--no-first-run',
     '--no-default-browser-check'
   ]);
 
   let ready = false;
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 40; i++) {
     try {
-      const v = await fetch('http://127.0.0.1:9230/json/version');
+      const v = await fetch('http://127.0.0.1:9231/json/version');
       if (v.ok) {
         ready = true;
         break;
       }
     } catch (_) {}
-    await sleep(200);
+    await sleep(250);
   }
 
   if (!ready) {
@@ -120,7 +124,7 @@ async function verifySurgicalFix() {
   }
 
   try {
-    const targetRes = await fetch('http://127.0.0.1:9230/json/new?about:blank', { method: 'PUT' });
+    const targetRes = await fetch('http://127.0.0.1:9231/json/new?about:blank', { method: 'PUT' });
     const target = await targetRes.json();
     const cdp = new CDPClient(target.webSocketDebuggerUrl);
     await cdp.connect();
@@ -136,174 +140,181 @@ async function verifySurgicalFix() {
 
     let frame = 0;
 
-    console.log('1. Navigation vers http://localhost:5173/ ...');
+    console.log('1. Navigation vers http://localhost:5173/ (TEST SANS CODE / MODE DÉMO)...');
     await cdp.send('Page.navigate', { url: 'http://localhost:5173/' });
     await sleep(1500);
 
-    // Vérification du Start Gate
-    const startGateVisible = await cdp.eval(`
-      (() => {
-        const gate = document.querySelector('#start-gate-overlay');
-        if (!gate) return false;
-        const style = window.getComputedStyle(gate);
-        return style.display !== 'none' && parseFloat(style.opacity) > 0;
-      })()
-    `);
-    console.log('   Start gate visible au démarrage:', startGateVisible);
+    // 01_start_gate.png
+    console.log('   Capture 01_start_gate.png...');
+    await cdp.screenshot('01_start_gate.png');
     await cdp.saveVideoFrame(frame++, '01_start_gate');
-    await sleep(200);
-    await cdp.saveVideoFrame(frame++, '02_start_gate_pulse');
 
     // Tap sur Start Gate
     console.log('2. Tap sur Start Gate (« Toucher pour découvrir l’invitation »)...');
     await cdp.click('#start-gate-overlay');
     await sleep(150);
-    await cdp.saveVideoFrame(frame++, '03_start_gate_fade');
+    await cdp.saveVideoFrame(frame++, '02_start_gate_fade');
 
-    // Entrée de l'enveloppe
-    console.log('3. Entrée de l\'enveloppe du bas vers le centre...');
-    await sleep(500);
-    await cdp.saveVideoFrame(frame++, '04_envelope_entering_25');
-    await sleep(500);
-    await cdp.saveVideoFrame(frame++, '05_envelope_entering_50');
-    await sleep(500);
-    await cdp.saveVideoFrame(frame++, '06_envelope_entering_75');
+    // 02_envelope_enter_mid.png (pendant l'ascension lente 2.10s)
+    await sleep(1000); // ~1.0s dans la course de 2.10s
+    console.log('   Capture 02_envelope_enter_mid.png...');
+    await cdp.screenshot('02_envelope_enter_mid.png');
+    await cdp.saveVideoFrame(frame++, '03_envelope_enter_mid');
+
+    // Fin d'ascension et settle
+    await sleep(1200);
+    await cdp.saveVideoFrame(frame++, '04_envelope_settle');
+    await sleep(400);
+
+    // Floating Idle permanent
+    console.log('3. Floating Idle permanent...');
     await sleep(600);
-    await cdp.saveVideoFrame(frame++, '07_envelope_settle');
+    await cdp.saveVideoFrame(frame++, '05_idle_float');
     await sleep(600);
-    await cdp.saveVideoFrame(frame++, '08_envelope_idle_center');
-
-    // Floating idle
-    console.log('4. Floating Idle permanent...');
-    await sleep(1000);
-    await cdp.saveVideoFrame(frame++, '09_idle_float_top');
-    await sleep(1500);
-    await cdp.saveVideoFrame(frame++, '10_idle_float_bottom');
-
-    // Capture current_fixed_front.png
-    await cdp.screenshot('current_fixed_front.png');
-
-    // Vérification géométrie enveloppe
-    const frontGeom = await cdp.eval(`
-      (() => {
-        const front = document.querySelector('#envelope-front-face');
-        const obj3d = document.querySelector('#envelope-object-3d');
-        const rFront = front.getBoundingClientRect();
-        const rObj = obj3d.getBoundingClientRect();
-        return {
-          front: { width: rFront.width, height: rFront.height, left: rFront.left, top: rFront.top },
-          obj3d: { width: rObj.width, height: rObj.height, left: rObj.left, top: rObj.top, styleMarginLeft: obj3d.style.marginLeft },
-          transform: front.style.transform
-        };
-      })()
-    `);
-    console.log('   Géométrie enveloppe front:', JSON.stringify(frontGeom, null, 2));
+    await cdp.saveVideoFrame(frame++, '06_idle_float');
 
     // Clic pour ouvrir
-    console.log('5. Clic sur l\'enveloppe pour ouvrir...');
+    console.log('4. Clic sur l\'enveloppe pour ouvrir...');
     await cdp.click('#envelope-object-3d');
 
-    // Flip 180°
-    await sleep(350);
-    await cdp.saveVideoFrame(frame++, '11_flip_start');
-    await sleep(500);
-    await cdp.saveVideoFrame(frame++, '12_flip_90');
-    await sleep(500);
-    await cdp.saveVideoFrame(frame++, '13_flip_135');
-    await sleep(500);
-    await cdp.saveVideoFrame(frame++, '14_flip_180_seal');
-
-    // Sceau et enveloppe ouverte
-    await sleep(350);
-    await cdp.saveVideoFrame(frame++, '15_seal_opening');
-    await sleep(350);
-    await cdp.saveVideoFrame(frame++, '16_open_envelope');
-
-    // Test frame par frame extraction (0.40, 0.60, 0.75, 0.85, 0.92, 0.96, 1.00)
-    console.log('6. Test frame par frame de la carte et mesure de dépassement sous l\'enveloppe...');
-    const progressList = [0.40, 0.60, 0.75, 0.85, 0.92, 0.96, 1.00];
-
-    for (const p of progressList) {
-      const frameData = await cdp.eval(`
-        (() => {
-          const card = document.querySelector('#invitation-card-wrapper');
-          const clippingLayer = document.querySelector('#card-clipping-layer');
-          const openBg = document.querySelector('#open-envelope-background');
-          const rCard = card.getBoundingClientRect();
-          const rBg = openBg ? openBg.getBoundingClientRect() : null;
-
-          const envelopeBottom = rBg ? rBg.bottom : 0;
-          const cardBottom = rCard.bottom;
-          const overflowBelow = cardBottom - envelopeBottom;
-
-          return {
-            cardRect: { top: rCard.top, bottom: rCard.bottom, height: rCard.height },
-            envelopeBottom,
-            overflowBelow,
-            clipping: clippingLayer ? window.getComputedStyle(clippingLayer).clipPath : 'none',
-            cardZIndex: card ? window.getComputedStyle(card).zIndex : '0'
-          };
-        })()
-      `);
-
-      const pStr = p.toFixed(2);
-      console.log(`   [progress ${pStr}] cardBottom: ${frameData.cardRect.bottom.toFixed(1)}px, envelopeBottom: ${frameData.envelopeBottom.toFixed(1)}px, overflow: ${frameData.overflowBelow.toFixed(1)}px, clip: ${frameData.clipping}, z: ${frameData.cardZIndex}`);
-      await cdp.screenshot(`extraction_progress_${pStr}.png`);
-      await cdp.saveVideoFrame(frame++, `17_extraction_progress_${pStr}`);
-      await sleep(400);
+    // Flip 180° et ouverture du sceau
+    while (true) {
+      const state = await cdp.eval('(window.__hanna || window.__hannaExperience)?.stateManager?.getState()');
+      if (state === 'CARD_EXTRACTING') break;
+      await sleep(100);
+      if (frame < 12) await cdp.saveVideoFrame(frame++, 'flip_and_open');
     }
 
-    // Présentation finale continue & recul enveloppe
-    console.log('7. Présentation finale continue & recul enveloppe...');
-    await sleep(350);
-    await cdp.saveVideoFrame(frame++, '18_presentation_start');
-    await sleep(400);
-    await cdp.saveVideoFrame(frame++, '19_presentation_mid');
-    await sleep(600);
-    await cdp.saveVideoFrame(frame++, '20_card_ready_fixed');
-    await cdp.screenshot('current_card_ready_mobile.png');
+    // Extraction continue de la carte (3.0s)
+    console.log('5. Extraction continue de la carte...');
+    while (true) {
+      const state = await cdp.eval('(window.__hanna || window.__hannaExperience)?.stateManager?.getState()');
+      if (state === 'CARD_PRESENTING') break;
+      await sleep(250);
+      await cdp.saveVideoFrame(frame++, 'extracting');
+    }
 
-    // Hotspot Styles
-    const hotspotStyles = await cdp.eval(`
+    // 03_card_presentation_50.png (à ~50% de la transition 1.20s vers plein écran)
+    console.log('6. Transition continue vers page plein écran (1.20s)...');
+    await sleep(600); // ~50% de la présentation (1.20s)
+    console.log('   Capture 03_card_presentation_50.png...');
+    await cdp.screenshot('03_card_presentation_50.png');
+    await cdp.saveVideoFrame(frame++, '13_card_presentation_50');
+
+    // Attente de l'état CARD_READY
+    while (true) {
+      const state = await cdp.eval('(window.__hanna || window.__hannaExperience)?.stateManager?.getState()');
+      if (state === 'CARD_READY') break;
+      await sleep(100);
+    }
+    await sleep(300); // Stabilisation finale
+    await cdp.saveVideoFrame(frame++, '14_card_ready_top');
+
+    // 04_fullscreen_mobile_top.png (vue haute de la page plein écran avec motifs, Bismillah, Salma...)
+    console.log('   Capture 04_fullscreen_mobile_top.png...');
+    await cdp.screenshot('04_fullscreen_mobile_top.png');
+
+    // Scroll vers le bas si la page est plus haute que le visual viewport
+    console.log('   Vérification scroll et capture 05_fullscreen_mobile_bottom.png...');
+    await cdp.eval(`
       (() => {
-        const hs = document.querySelector('#card-address-hotspot');
-        if (!hs) return null;
-        const style = window.getComputedStyle(hs);
+        const page = document.querySelector('#invitation-fullscreen-page');
+        if (page && page.scrollHeight > page.clientHeight) {
+          page.scrollTop = page.scrollHeight - page.clientHeight;
+        }
+      })()
+    `);
+    await sleep(200);
+    await cdp.screenshot('05_fullscreen_mobile_bottom.png');
+    await cdp.saveVideoFrame(frame++, '15_fullscreen_mobile_bottom');
+
+    // Scroll back to center/form
+    await cdp.eval(`
+      (() => {
+        const page = document.querySelector('#invitation-fullscreen-page');
+        if (page) page.scrollTop = 0;
+      })()
+    `);
+    await sleep(150);
+
+    // 06_route_button.png (zoom sur le bouton Itinéraire sous l'adresse)
+    console.log('   Capture 06_route_button.png...');
+    const btnRect = await cdp.eval(`
+      (() => {
+        const btn = document.querySelector('#card-route-button');
+        if (!btn) return null;
+        const r = btn.getBoundingClientRect();
         return {
-          background: style.backgroundColor,
-          border: style.borderWidth + ' ' + style.borderColor,
-          outline: style.outlineWidth,
-          boxShadow: style.boxShadow,
-          tapHighlight: style.webkitTapHighlightColor,
-          pointerEvents: style.pointerEvents,
-          href: hs.getAttribute('href'),
-          ariaLabel: hs.getAttribute('aria-label'),
-          target: hs.getAttribute('target')
+          x: Math.max(0, r.left - 40),
+          y: Math.max(0, r.top - 40),
+          width: r.width + 80,
+          height: r.height + 80,
+          scale: 1
         };
       })()
     `);
-    console.log('   Styles Hotspot Adresse:', JSON.stringify(hotspotStyles, null, 2));
+    if (btnRect) {
+      await cdp.screenshot('06_route_button.png', btnRect);
+    } else {
+      await cdp.screenshot('06_route_button.png');
+    }
 
-    // RSVP Options
-    console.log('8. Sélection RSVP Présent(e)...');
+    // 07_present_selected.png
+    console.log('7. Clic sur Présent(e)...');
     await cdp.click('.rsvp-btn-option[data-choice="PRESENT"]');
     await sleep(300);
-    await cdp.saveVideoFrame(frame++, '21_rsvp_present_selected');
-    await cdp.screenshot('current_rsvp_selected.png');
+    console.log('   Capture 07_present_selected.png...');
+    await cdp.screenshot('07_present_selected.png');
+    await cdp.saveVideoFrame(frame++, '16_present_selected');
 
-    // Validation
-    console.log('9. Clic Valider...');
+    // 8. Clic Valider (test du mode démo sans code)
+    console.log('8. Clic sur Valider (validation démo fluide ~250ms)...');
     await cdp.click('#rsvp-btn-submit');
-    await sleep(400);
-    await cdp.saveVideoFrame(frame++, '22_card_sending');
-    await sleep(1000);
-    await cdp.saveVideoFrame(frame++, '23_confirmation_final');
+
+    // Attente de l'état COMPLETED
+    while (true) {
+      const state = await cdp.eval('(window.__hanna || window.__hannaExperience)?.stateManager?.getState()');
+      if (state === 'CARD_SENDING' || state === 'COMPLETED') {
+        await cdp.saveVideoFrame(frame++, 'sending_or_completed');
+      }
+      if (state === 'COMPLETED') break;
+      await sleep(150);
+    }
+    await sleep(500);
+
+    // 08_confirmation.png (message final sur fond ivoire)
+    console.log('   Capture 08_confirmation.png...');
+    await cdp.screenshot('08_confirmation.png');
+    await cdp.saveVideoFrame(frame++, '20_confirmation_final');
 
     console.log(`=== TEST TERMINÉ : ${frame} FRAMES CAPTURÉES ===`);
+
+    // Copie des 8 screenshots vers le répertoire des artifacts
+    const ARTIFACTS_DIR = '/Users/soufianeelrhadi/.gemini/antigravity-ide/brain/3bae6ad7-9a2b-4846-a85a-ca9f89474d53';
+    const screenshotNames = [
+      '01_start_gate.png',
+      '02_envelope_enter_mid.png',
+      '03_card_presentation_50.png',
+      '04_fullscreen_mobile_top.png',
+      '05_fullscreen_mobile_bottom.png',
+      '06_route_button.png',
+      '07_present_selected.png',
+      '08_confirmation.png'
+    ];
+
+    for (const sName of screenshotNames) {
+      const src = path.join(CAPTURES_DIR, sName);
+      const dst = path.join(ARTIFACTS_DIR, sName);
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, dst);
+        console.log(`   Copié vers artifact : ${sName}`);
+      }
+    }
+
     cdp.close();
 
-    // Assemblage de l'animation WebP vidéo
-    console.log('10. Assemblage vidéo WebP...');
+    // Assemblage vidéo WebP
+    console.log('9. Assemblage vidéo WebP...');
     execSync('python3 scripts/assemble-video.py', { stdio: 'inherit' });
 
   } catch (err) {

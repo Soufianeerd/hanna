@@ -26,7 +26,7 @@ export class InvitationAudioManager {
       this.audio = new Audio();
       this.audio.src = AUDIO.invitationMusic.src;
       this.audio.preload = 'auto';
-      this.audio.loop = false;
+      this.audio.loop = true; // LOOP INFINI CONTINU PENDANT TOUTE L'EXPÉRIENCE
       this.audio.volume = 0;
 
       this.audio.addEventListener('error', () => {
@@ -72,15 +72,14 @@ export class InvitationAudioManager {
   }
 
   /**
-   * Démarre la musique immédiatement dans le call-stack du geste utilisateur (ex: pointerdown enveloppe)
-   * Méthode la plus fiable sur iOS Safari et Chrome Mobile
+   * Démarre la musique immédiatement dans le call-stack du geste utilisateur
    */
   start() {
     this.playOnUserGesture();
   }
 
   playOnUserGesture() {
-    if (!this.available || !this.audio || this.isPlaying || this.hasFadedOut) return;
+    if (!this.available || !this.audio || this.isPlaying) return;
 
     try {
       const targetVolume = this.isMuted ? 0 : AUDIO.invitationMusic.volume;
@@ -106,23 +105,11 @@ export class InvitationAudioManager {
   }
 
   /**
-   * Fade out progressif et arrêt (appelé à CARD_READY)
-   * @param {number} duration Durée du fondu en secondes (défaut: 0.8s)
+   * Méthode conservée pour compatibilité mais SANS auto-stop
    */
-  fadeOutAndStop(duration = AUDIO.invitationMusic.fadeOut) {
-    if (!this.audio || !this.isPlaying || this.hasFadedOut) return;
-    this.hasFadedOut = true;
-
-    if (this.fadeTween) this.fadeTween.kill();
-
-    this.fadeTween = gsap.to(this.audio, {
-      volume: 0,
-      duration: duration,
-      ease: 'power2.out',
-      onComplete: () => {
-        this.stop();
-      }
-    });
+  fadeOutAndStop() {
+    // La musique ne s'arrête plus automatiquement sur les changements d'état
+    return;
   }
 
   stop() {
@@ -139,8 +126,11 @@ export class InvitationAudioManager {
     if (this.audio) {
       if (this.isMuted) {
         this.audio.volume = 0;
-      } else if (this.isPlaying && !this.hasFadedOut) {
+      } else {
         this.audio.volume = AUDIO.invitationMusic.volume;
+        if (this.audio.paused) {
+          this.audio.play().catch(() => {});
+        }
       }
     }
     if (this.onMuteChange) {

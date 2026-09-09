@@ -16,8 +16,8 @@ export class CardSendAnimation {
   play({ onComplete } = {}) {
     this.kill();
 
-    const targetCard = this.scene.elements.interactiveCard || this.scene.elements.card;
-    const { rsvpPanel, confirmationMessage } = this.scene.elements;
+    const targetCard = this.scene.elements.card;
+    const { rsvpOverlay, routeButton, fullscreenPage, confirmationMessage } = this.scene.elements;
     const cfg = MOTION.cardSend;
     const confCfg = MOTION.confirmation;
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -29,17 +29,19 @@ export class CardSendAnimation {
       }
     });
 
-    // 1. Fade-out du panneau RSVP s'il existe encore séparé
-    if (rsvpPanel) {
-      this.timeline.to(rsvpPanel, {
+    // 1. Disparition rapide des boutons d'interaction (RSVP + Itinéraire)
+    const interactiveOverlays = [rsvpOverlay, routeButton].filter(Boolean);
+    if (interactiveOverlays.length > 0) {
+      this.timeline.to(interactiveOverlays, {
         opacity: 0,
-        y: MOTION.rsvp.panelFadeOutY,
-        duration: MOTION.rsvp.panelFadeOutDuration,
+        duration: 0.15,
         ease: 'power2.in',
         onComplete: () => {
-          rsvpPanel.style.display = 'none';
+          interactiveOverlays.forEach((el) => {
+            el.style.display = 'none';
+          });
         }
-      });
+      }, 0);
     }
 
     this.timeline.add(() => {
@@ -55,10 +57,11 @@ export class CardSendAnimation {
         ease: 'power2.out',
         onComplete: () => {
           if (targetCard) targetCard.style.display = 'none';
+          if (fullscreenPage) fullscreenPage.style.display = 'none';
         }
       });
     } else {
-      // 2. Prise d'élan vers le bas
+      // 2. Petite anticipation physique
       this.timeline.to(targetCard, {
         y: `+=${cfg.anticipationY}`,
         scale: `*=${cfg.anticipationScale}`,
@@ -66,20 +69,21 @@ export class CardSendAnimation {
         ease: cfg.anticipationEase
       });
 
-      // 3. Départ fulgurant vers le haut
+      // 3. Départ gracieux vers le haut
       this.timeline.to(targetCard, {
         y: cfg.departureY,
         duration: cfg.departureDuration,
         ease: cfg.departureEase
       });
 
-      // Opacité maintenue jusqu'aux derniers 10%
+      // Opacité maintenue jusqu'aux derniers 15% de l'envol
       this.timeline.to(targetCard, {
         opacity: 0,
         duration: cfg.departureDuration * 0.15,
         ease: 'power1.in',
         onComplete: () => {
           if (targetCard) targetCard.style.display = 'none';
+          if (fullscreenPage) fullscreenPage.style.display = 'none';
         }
       }, `-=${cfg.departureDuration * 0.15}`);
     }

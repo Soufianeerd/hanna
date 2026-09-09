@@ -42,25 +42,11 @@ export function computeFinalCardRect() {
   let targetHeight;
 
   if (isMobile) {
-    // Marges de sécurité pour éviter les barres Safari et encoches (Safe Area)
-    const safeTop = 10;
-    const safeBottom = 16;
-    const marginX = 8;
-
-    const availableWidth = Math.max(280, vv.width - marginX * 2);
-    const availableHeight = Math.max(400, vv.height - safeTop - safeBottom);
-
-    // Hauteur contrainte par la zone visible
-    targetHeight = Math.min(availableHeight, availableWidth / ratio);
-    targetWidth = targetHeight * ratio;
-
-    // Si la hauteur calculée permet de prendre plus de largeur tout en restant dans le viewport
-    if (targetWidth > availableWidth) {
-      targetWidth = availableWidth;
-      targetHeight = targetWidth / ratio;
-    }
+    // Mobile prioritaire (390×844 etc.) : 100% de la largeur disponible (décor touche les bords)
+    targetWidth = Math.round(vv.width);
+    targetHeight = Math.round(targetWidth / ratio);
   } else {
-    // Desktop : centré avec une hauteur maximale de 94dvh
+    // Desktop : centré avec proportions harmonieuses
     const maxDesktopHeight = Math.min(vv.height * 0.94, 900);
     const maxDesktopWidth = Math.min(540, vv.width - 32);
 
@@ -68,9 +54,11 @@ export function computeFinalCardRect() {
     targetWidth = targetHeight * ratio;
   }
 
-  // Centrage parfait dans le Visual Viewport visible
+  // Positionnement dans le Visual Viewport visible
   const targetLeft = vv.offsetLeft + (vv.width - targetWidth) / 2;
-  const targetTop = vv.offsetTop + (vv.height - targetHeight) / 2;
+  const targetTop = targetHeight <= vv.height
+    ? vv.offsetTop + (vv.height - targetHeight) / 2
+    : vv.offsetTop;
 
   return {
     left: Math.round(targetLeft),
